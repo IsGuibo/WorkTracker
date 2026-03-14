@@ -44,6 +44,8 @@
       "currentStatus": "等客户确认接口方案",
       "startDate": "2026-03-10",
       "dueDate": "2026-03-28",
+      "pausedAt": null,
+      "resumeDate": null,
       "description": "DP定开项目",
       "tasks": [
         {
@@ -76,6 +78,8 @@
 | currentStatus | string | 当前进展的文字描述，如"等客户确认" |
 | startDate | string | 开始日期，ISO 格式 |
 | dueDate | string | 截止日期，ISO 格式，可选 |
+| pausedAt | string | 暂停日期，ISO 格式，status 为 paused 时记录，可选 |
+| resumeDate | string | 预计恢复日期，ISO 格式，可选 |
 | description | string | 项目简述 |
 | tasks | Task[] | 子任务列表 |
 
@@ -186,7 +190,12 @@
   - 色条上显示项目名称（空间不够时截断）
   - 点击色条跳转到对应项目详情
 - 点击日期数字进入日详情视图
-- 已完成（done）的项目色条可降低透明度或用虚线区分
+- 已完成（done）的项目色条降低透明度区分
+- 暂停（paused）的项目时间线特殊处理：
+  - startDate → pausedAt 段：实线色条（正常颜色，降低透明度）
+  - pausedAt → resumeDate 段：空白，不画线（暂停期）
+  - resumeDate → dueDate 段：虚线色条，表示预计恢复后的计划
+  - 无 resumeDate 时，色条在 pausedAt 处截断，末端加暂停标记
 
 #### 4. 日详情
 
