@@ -44,7 +44,9 @@
       "currentStatus": "等客户确认接口方案",
       "startDate": "2026-03-10",
       "dueDate": "2026-03-28",
-      "pausedAt": null,
+      "statusHistory": [
+        { "status": "in_progress", "date": "2026-03-10" }
+      ],
       "description": "DP定开项目",
       "tasks": [
         {
@@ -77,7 +79,7 @@
 | currentStatus | string | 当前进展的文字描述，如"等客户确认" |
 | startDate | string | 开始日期，ISO 格式 |
 | dueDate | string | 截止日期，ISO 格式，可选 |
-| pausedAt | string | 暂停日期，ISO 格式，status 为 paused 时记录，恢复时清除，可选 |
+| statusHistory | StatusChange[] | 状态变更历史，用于时间线渲染 |
 | description | string | 项目简述 |
 | tasks | Task[] | 子任务列表 |
 
@@ -89,6 +91,15 @@
 | name | string | 任务名称 |
 | status | enum | 同项目 status |
 | currentStatus | string | 当前进展文字描述 |
+
+StatusChange 字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| status | enum | 变更后的状态 |
+| date | string | 变更日期，ISO 格式 |
+
+每次 status 变更时追加一条记录。首条记录的 date 即为项目实际开始日期。时间线根据相邻记录的 status 和 date 来绘制各段（进行中=实线，暂停/等待=空白）。
 
 ### daily-logs.json
 
@@ -189,9 +200,12 @@
   - 点击色条跳转到对应项目详情
 - 点击日期数字进入日详情视图
 - 已完成（done）的项目色条降低透明度区分
-- 暂停（paused）的项目时间线特殊处理：
-  - 色条从 startDate 画到 pausedAt，末端加暂停标记
-  - 恢复时（status 改回 in_progress，清除 pausedAt），色条继续正常延伸
+- 暂停（paused）/ 等待（waiting）的项目时间线特殊处理：
+  - 根据 statusHistory 绘制分段时间线
+  - in_progress 段：实线色条
+  - paused / waiting 段：空白（不画线）
+  - 恢复后的 in_progress 段：继续实线色条
+  - 支持多次暂停/恢复循环
 
 #### 4. 日详情
 
