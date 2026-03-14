@@ -1,75 +1,75 @@
-# WorkTracker Implementation Plan
+# WorkTracker 实现计划
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **自动化执行提示：** 必须使用 superpowers:subagent-driven-development（如有子代理）或 superpowers:executing-plans 来执行此计划。步骤使用 checkbox (`- [ ]`) 语法跟踪进度。
 
-**Goal:** Build a SwiftUI macOS native app that displays work progress from local JSON/Markdown files, with real-time file watching for updates made by Claude Code.
+**目标：** 构建一个 SwiftUI macOS 原生应用，从本地 JSON/Markdown 文件读取并展示工作进度，通过实时文件监听响应 Claude Code 的数据更新。
 
-**Architecture:** NavigationSplitView layout with sidebar (project list) and detail area (project detail / calendar). Data layer uses an ObservableObject DataStore that loads JSON files and watches for changes via FSEvents. All data persisted as local files — no database.
+**架构：** NavigationSplitView 布局，左侧边栏（项目列表）+ 右侧详情区（项目详情 / 日历视图）。数据层使用 ObservableObject DataStore 加载 JSON 文件，通过 FSEvents 监听文件变化。所有数据以本地文件持久化，无数据库。
 
-**Tech Stack:** Swift, SwiftUI, macOS 14+, Xcode, Swift Package Manager, FSEvents (CoreServices)
+**技术栈：** Swift, SwiftUI, macOS 14+, Xcode, Swift Package Manager, FSEvents (CoreServices)
 
-**Spec:** `docs/superpowers/specs/2026-03-14-worktracker-design.md`
+**设计文档：** `docs/superpowers/specs/2026-03-14-worktracker-design.md`
 
 ---
 
-## File Structure
+## 文件结构
 
 ```
 WorkTracker/
 ├── WorkTracker.xcodeproj
 ├── WorkTracker/
-│   ├── WorkTrackerApp.swift              # App entry, window setup
-│   ├── ContentView.swift                 # Root NavigationSplitView layout
+│   ├── WorkTrackerApp.swift              # 应用入口，窗口配置
+│   ├── ContentView.swift                 # 根布局 NavigationSplitView
 │   ├── Models/
-│   │   ├── Project.swift                 # Project, Task, StatusChange models
-│   │   ├── DailyLog.swift                # DailyLog, LogEntry models
-│   │   └── Enums.swift                   # ProjectStatus, Priority enums
+│   │   ├── Project.swift                 # 项目、子任务、状态变更模型
+│   │   ├── DailyLog.swift                # 每日记录、日志条目模型
+│   │   └── Enums.swift                   # ProjectStatus、Priority 枚举
 │   ├── Services/
-│   │   ├── DataStore.swift               # ObservableObject, load/save/watch
-│   │   └── FileWatcher.swift             # FSEvents wrapper with debounce
+│   │   ├── DataStore.swift               # ObservableObject，加载/保存/监听
+│   │   └── FileWatcher.swift             # FSEvents 封装，带防抖
 │   ├── Views/
 │   │   ├── Sidebar/
-│   │   │   ├── ProjectListView.swift     # Project list with filtering
-│   │   │   └── ProjectRowView.swift      # Single project row in sidebar
+│   │   │   ├── ProjectListView.swift     # 项目列表，带筛选
+│   │   │   └── ProjectRowView.swift      # 侧边栏单个项目行
 │   │   ├── Detail/
-│   │   │   ├── ProjectDetailView.swift   # Project info + tabs
-│   │   │   ├── TaskListView.swift        # Subtask list tab
-│   │   │   └── DraftEditorView.swift     # Markdown draft tab
+│   │   │   ├── ProjectDetailView.swift   # 项目信息 + 标签页
+│   │   │   ├── TaskListView.swift        # 子任务列表标签页
+│   │   │   └── DraftEditorView.swift     # Markdown 草稿标签页
 │   │   ├── Calendar/
-│   │   │   ├── CalendarMonthView.swift   # Month grid + Gantt bars
-│   │   │   ├── GanttBarView.swift        # Single project timeline bar
-│   │   │   └── DayDetailView.swift       # Day detail with log entries
+│   │   │   ├── CalendarMonthView.swift   # 月视图网格 + 甘特条
+│   │   │   ├── GanttBarView.swift        # 单个项目时间线条
+│   │   │   └── DayDetailView.swift       # 日详情，展示工作记录
 │   │   └── Settings/
-│   │       └── SettingsView.swift        # Data directory picker
+│   │       └── SettingsView.swift        # 数据目录选择
 │   └── Utilities/
-│       ├── ColorPalette.swift            # Project color assignment
-│       └── DateHelpers.swift             # Date formatting/calculation helpers
+│       ├── ColorPalette.swift            # 项目颜色分配
+│       └── DateHelpers.swift             # 日期格式化/计算工具
 ├── WorkTrackerTests/
-│   ├── ModelTests.swift                  # JSON decode/encode tests
-│   ├── DataStoreTests.swift              # DataStore load/save tests
-│   └── CalendarHelperTests.swift         # Date calculation tests
-└── CLAUDE.md                             # Claude Code data operation guide
+│   ├── ModelTests.swift                  # JSON 编解码测试
+│   ├── DataStoreTests.swift              # DataStore 加载/保存测试
+│   └── CalendarHelperTests.swift         # 日期计算测试
+└── CLAUDE.md                             # Claude Code 数据操作指南
 ```
 
 ---
 
-## Chunk 1: Project Setup + Data Models + DataStore
+## Chunk 1: 项目搭建 + 数据模型 + DataStore
 
-### Task 1: Create Xcode project
+### Task 1: 创建 Xcode 项目
 
-**Files:**
-- Create: `WorkTracker/` Xcode project structure
+**文件：**
+- 创建: `WorkTracker/` Xcode 项目结构
 
-- [ ] **Step 1: Create Xcode project via command line**
+- [ ] **Step 1: 通过命令行创建项目结构**
 
-Create a new SwiftUI macOS app project. Use Xcode's `xcodebuild` or create manually:
+创建一个新的 SwiftUI macOS 应用项目，手动创建目录结构：
 
 ```bash
 mkdir -p WorkTracker/WorkTracker
 mkdir -p WorkTracker/WorkTrackerTests
 ```
 
-Create `WorkTracker/WorkTracker/WorkTrackerApp.swift`:
+创建 `WorkTracker/WorkTracker/WorkTrackerApp.swift`：
 ```swift
 import SwiftUI
 
@@ -87,7 +87,7 @@ struct WorkTrackerApp: App {
 }
 ```
 
-Create `WorkTracker/WorkTracker/ContentView.swift`:
+创建 `WorkTracker/WorkTracker/ContentView.swift`：
 ```swift
 import SwiftUI
 
@@ -99,7 +99,7 @@ struct ContentView: View {
 }
 ```
 
-Create placeholder `WorkTracker/WorkTracker/Views/Settings/SettingsView.swift`:
+创建占位 `WorkTracker/WorkTracker/Views/Settings/SettingsView.swift`：
 ```swift
 import SwiftUI
 
@@ -111,30 +111,30 @@ struct SettingsView: View {
 }
 ```
 
-- [ ] **Step 2: Create Xcode project file**
+- [ ] **Step 2: 创建 Xcode 项目文件**
 
-Use Xcode to create the `.xcodeproj` (or use `swift package init` and convert). Set deployment target to macOS 14.0. Ensure the project builds and runs showing "WorkTracker" text.
+使用 Xcode 创建 `.xcodeproj`（或用 `swift package init` 后转换）。设置部署目标为 macOS 14.0。确保项目能构建运行，显示 "WorkTracker" 文字。
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: 提交**
 
 ```bash
 git add WorkTracker/
-git commit -m "feat: scaffold Xcode project with SwiftUI app entry"
+git commit -m "feat: 搭建 Xcode 项目，SwiftUI 应用入口"
 ```
 
 ---
 
-### Task 2: Define data models
+### Task 2: 定义数据模型
 
-**Files:**
-- Create: `WorkTracker/WorkTracker/Models/Enums.swift`
-- Create: `WorkTracker/WorkTracker/Models/Project.swift`
-- Create: `WorkTracker/WorkTracker/Models/DailyLog.swift`
-- Create: `WorkTracker/WorkTrackerTests/ModelTests.swift`
+**文件：**
+- 创建: `WorkTracker/WorkTracker/Models/Enums.swift`
+- 创建: `WorkTracker/WorkTracker/Models/Project.swift`
+- 创建: `WorkTracker/WorkTracker/Models/DailyLog.swift`
+- 创建: `WorkTracker/WorkTrackerTests/ModelTests.swift`
 
-- [ ] **Step 1: Write model tests**
+- [ ] **Step 1: 编写模型测试**
 
-Create `WorkTracker/WorkTrackerTests/ModelTests.swift`:
+创建 `WorkTracker/WorkTrackerTests/ModelTests.swift`：
 ```swift
 import XCTest
 @testable import WorkTracker
@@ -208,16 +208,16 @@ final class ModelTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 2: 运行测试验证失败**
 
 ```bash
 xcodebuild test -project WorkTracker/WorkTracker.xcodeproj -scheme WorkTracker -destination 'platform=macOS'
 ```
-Expected: FAIL — models don't exist yet.
+预期: 失败 — 模型尚未定义。
 
-- [ ] **Step 3: Implement Enums.swift**
+- [ ] **Step 3: 实现 Enums.swift**
 
-Create `WorkTracker/WorkTracker/Models/Enums.swift`:
+创建 `WorkTracker/WorkTracker/Models/Enums.swift`：
 ```swift
 import Foundation
 
@@ -242,9 +242,9 @@ enum Priority: String, Codable, CaseIterable, Comparable {
 }
 ```
 
-- [ ] **Step 4: Implement Project.swift**
+- [ ] **Step 4: 实现 Project.swift**
 
-Create `WorkTracker/WorkTracker/Models/Project.swift`:
+创建 `WorkTracker/WorkTracker/Models/Project.swift`：
 ```swift
 import Foundation
 
@@ -280,9 +280,9 @@ struct ProjectContainer: Codable {
 }
 ```
 
-- [ ] **Step 5: Implement DailyLog.swift**
+- [ ] **Step 5: 实现 DailyLog.swift**
 
-Create `WorkTracker/WorkTracker/Models/DailyLog.swift`:
+创建 `WorkTracker/WorkTracker/Models/DailyLog.swift`：
 ```swift
 import Foundation
 
@@ -305,30 +305,30 @@ struct DailyLogContainer: Codable {
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [ ] **Step 6: 运行测试验证通过**
 
 ```bash
 xcodebuild test -project WorkTracker/WorkTracker.xcodeproj -scheme WorkTracker -destination 'platform=macOS'
 ```
-Expected: ALL PASS
+预期: 全部通过
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: 提交**
 
 ```bash
 git add WorkTracker/
-git commit -m "feat: add data models with JSON encode/decode and tests"
+git commit -m "feat: 添加数据模型，含 JSON 编解码和测试"
 ```
 
 ---
 
-### Task 3: Implement FileWatcher
+### Task 3: 实现 FileWatcher
 
-**Files:**
-- Create: `WorkTracker/WorkTracker/Services/FileWatcher.swift`
+**文件：**
+- 创建: `WorkTracker/WorkTracker/Services/FileWatcher.swift`
 
-- [ ] **Step 1: Implement FileWatcher**
+- [ ] **Step 1: 实现 FileWatcher**
 
-Create `WorkTracker/WorkTracker/Services/FileWatcher.swift`:
+创建 `WorkTracker/WorkTracker/Services/FileWatcher.swift`：
 ```swift
 import Foundation
 import CoreServices
@@ -390,31 +390,31 @@ final class FileWatcher {
 }
 ```
 
-- [ ] **Step 2: Build to verify compilation**
+- [ ] **Step 2: 构建验证编译通过**
 
 ```bash
 xcodebuild build -project WorkTracker/WorkTracker.xcodeproj -scheme WorkTracker -destination 'platform=macOS'
 ```
-Expected: BUILD SUCCEEDED
+预期: BUILD SUCCEEDED
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: 提交**
 
 ```bash
 git add WorkTracker/WorkTracker/Services/FileWatcher.swift
-git commit -m "feat: add FSEvents file watcher with debounce"
+git commit -m "feat: 添加 FSEvents 文件监听器，带防抖"
 ```
 
 ---
 
-### Task 4: Implement DataStore
+### Task 4: 实现 DataStore
 
-**Files:**
-- Create: `WorkTracker/WorkTracker/Services/DataStore.swift`
-- Create: `WorkTracker/WorkTrackerTests/DataStoreTests.swift`
+**文件：**
+- 创建: `WorkTracker/WorkTracker/Services/DataStore.swift`
+- 创建: `WorkTracker/WorkTrackerTests/DataStoreTests.swift`
 
-- [ ] **Step 1: Write DataStore tests**
+- [ ] **Step 1: 编写 DataStore 测试**
 
-Create `WorkTracker/WorkTrackerTests/DataStoreTests.swift`:
+创建 `WorkTracker/WorkTrackerTests/DataStoreTests.swift`：
 ```swift
 import XCTest
 @testable import WorkTracker
@@ -493,16 +493,16 @@ final class DataStoreTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 2: 运行测试验证失败**
 
 ```bash
 xcodebuild test -project WorkTracker/WorkTracker.xcodeproj -scheme WorkTracker -destination 'platform=macOS'
 ```
-Expected: FAIL — DataStore doesn't exist.
+预期: 失败 — DataStore 尚未定义。
 
-- [ ] **Step 3: Implement DataStore**
+- [ ] **Step 3: 实现 DataStore**
 
-Create `WorkTracker/WorkTracker/Services/DataStore.swift`:
+创建 `WorkTracker/WorkTracker/Services/DataStore.swift`：
 ```swift
 import Foundation
 import SwiftUI
@@ -615,18 +615,18 @@ final class DataStore: ObservableObject {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: 运行测试验证通过**
 
 ```bash
 xcodebuild test -project WorkTracker/WorkTracker.xcodeproj -scheme WorkTracker -destination 'platform=macOS'
 ```
-Expected: ALL PASS
+预期: 全部通过
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: 提交**
 
 ```bash
 git add WorkTracker/
-git commit -m "feat: add DataStore with file loading, error handling, and tests"
+git commit -m "feat: 添加 DataStore，含文件加载、错误处理和测试"
 ```
 
 ---
