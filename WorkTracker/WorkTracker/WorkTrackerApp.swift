@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @main
 struct WorkTrackerApp: App {
@@ -20,7 +21,11 @@ struct WorkTrackerApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(dataStore)
-                .onAppear { dataStore.loadAll() }
+                .onAppear {
+                    dataStore.loadAll()
+                    NSApp.setActivationPolicy(.regular)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
         }
         .defaultSize(width: 1100, height: 700)
         Settings {

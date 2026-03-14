@@ -2,84 +2,540 @@ import SwiftUI
 
 struct ProjectDetailView: View {
     let project: Project
-    @State private var selectedTab = 0
+    @EnvironmentObject var store: DataStore
+    @State private var newTaskName = ""
+    @FocusState private var isTaskInputFocused: Bool
+    @State private var hoveredTaskId: String?
+    @State private var editingTaskId: String?
+    @State private var editingTaskName: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                projectHeader
+                taskSection
+                draftSection
+            }
+            .padding(24)
+            .frame(maxWidth: 640, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onTapGesture {
+            commitTaskEdit()
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
+    }
+
+    // MARK: - Header
+
+    private var projectHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                Circle()
+                    .fill(ColorPalette.color(for: project.id))
+                    .frame(width: 10, height: 10)
+                SmoothTextField(
+                    text: project.name,
+                    placeholder: "项目名称",
+                    font: .title2.bold()
+                ) { val in
+                    updateField { $0.name = val }
+                }
+            }
+
+            HStack(spacing: 6) {
+                statusMenu
+                priorityMenu
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "bolt.fill")
+                    .font(.caption2)
+                    .foregroundStyle(Color.accentColor)
+                SmoothTextField(
+                    text: project.currentStatus,
+                    placeholder: "当前进展…",
+                    font: .subheadline.weight(.medium)
+                ) { val in
+                    updateField { $0.currentStatus = val }
+                }
+            }
+
+            Divider()
+
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Circle()
-                        .fill(ColorPalette.color(for: project.id))
-                        .frame(width: 12, height: 12)
-                    Text(project.name)
-                        .font(.title2.bold())
-                    Spacer()
-                    Text(project.priority.rawValue)
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(ColorPalette.priorityColor(project.priority).opacity(0.15))
-                        .clipShape(Capsule())
-                    Text(project.status.rawValue.replacingOccurrences(of: "_", with: " "))
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(ColorPalette.statusColor(project.status).opacity(0.15))
-                        .clipShape(Capsule())
-                }
-
-                Text(project.currentStatus)
-                    .foregroundStyle(.secondary)
-
                 HStack(spacing: 16) {
-                    if !project.startDate.isEmpty {
-                        Label(project.startDate, systemImage: "calendar")
-                            .font(.caption)
+                    InlineDatePicker(
+                        dateString: project.startDate,
+                        label: "开始日期",
+                        icon: "calendar"
+                    ) { val in
+                        updateField { $0.startDate = val }
                     }
-                    if let due = project.dueDate {
-                        Label(due, systemImage: "flag")
-                            .font(.caption)
+                    InlineDatePicker(
+                        dateString: project.dueDate ?? "",
+                        label: "截止日期",
+                        icon: "flag"
+                    ) { val in
+                        updateField { $0.dueDate = val.isEmpty ? nil : val }
                     }
-                }
-
-                if !project.tags.isEmpty {
-                    HStack {
-                        ForEach(project.tags, id: \.self) { tag in
-                            Text(tag)
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(.quaternary)
-                                .clipShape(Capsule())
+                    if project.status == .done || project.completedDate != nil {
+                        InlineDatePicker(
+                            dateString: project.completedDate ?? "",
+                            label: "完成日期",
+                            icon: "checkmark.circle"
+                        ) { val in
+                            updateField { $0.completedDate = val.isEmpty ? nil : val }
                         }
                     }
                 }
 
-                if !project.description.isEmpty {
-                    Text(project.description)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                InlineTagsEditor(tags: project.tags) { newTags in
+                    updateField { $0.tags = newTags }
                 }
             }
-            .padding()
 
-            Divider()
-
-            Picker("", selection: $selectedTab) {
-                Text("子任务").tag(0)
-                Text("草稿").tag(1)
+            SmoothTextField(
+                text: project.description,
+                placeholder: "添加项目描述…",
+                font: .callout,
+                color: .secondary
+            ) { val in
+                updateField { $0.description = val }
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+        }
+        .padding(16)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+    }
 
-            switch selectedTab {
-            case 0:
-                TaskListView(tasks: project.tasks)
-            case 1:
-                DraftEditorView(projectId: project.id)
-            default:
-                EmptyView()
+    private var statusMenu: some View {
+        Menu {
+            ForEach(ProjectStatus.allCases, id: \.self) { s in
+                Button(action: { changeStatus(s) }) {
+                    HStack {
+                        Text(s.label)
+                        if s == project.status { Image(systemName: "checkmark") }
+                    }
+                }
+            }
+        } label: {
+            Text(project.status.label)
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(ColorPalette.statusColor(project.status).opacity(0.15))
+                .clipShape(Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+
+    private var priorityMenu: some View {
+        Menu {
+            ForEach(Priority.allCases, id: \.self) { p in
+                Button(action: { changePriority(p) }) {
+                    HStack {
+                        Text(p.label)
+                        if p == project.priority { Image(systemName: "checkmark") }
+                    }
+                }
+            }
+        } label: {
+            Text(project.priority.label)
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(ColorPalette.priorityColor(project.priority).opacity(0.15))
+                .clipShape(Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+
+    // MARK: - Task Section
+
+    private var taskSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("子任务", systemImage: "checklist")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if !project.tasks.isEmpty {
+                    let done = project.tasks.filter { $0.status == .done }.count
+                    Text("\(done)/\(project.tasks.count)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            VStack(spacing: 0) {
+                ForEach(project.tasks) { task in
+                    taskRow(task)
+                    if task.id != project.tasks.last?.id {
+                        Divider().padding(.leading, 28)
+                    }
+                }
+
+                if !project.tasks.isEmpty {
+                    Divider()
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle")
+                        .foregroundStyle(isTaskInputFocused ? Color.accentColor : Color.gray)
+                        .font(.body)
+                    TextField("添加新任务…", text: $newTaskName)
+                        .textFieldStyle(.plain)
+                        .focused($isTaskInputFocused)
+                        .onSubmit { submitTask() }
+                    if !newTaskName.isEmpty {
+                        Button("添加") { submitTask() }
+                            .font(.caption.weight(.medium))
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            }
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        }
+    }
+
+    private func taskRow(_ task: ProjectTask) -> some View {
+        HStack(spacing: 8) {
+            Button(action: { toggleTaskStatus(task.id) }) {
+                Image(systemName: task.status == .done
+                      ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(ColorPalette.statusColor(task.status))
+            }
+            .buttonStyle(.plain)
+
+            if editingTaskId == task.id {
+                TextField("任务名称", text: $editingTaskName)
+                    .textFieldStyle(.plain)
+                    .onSubmit { commitTaskEdit() }
+                    .onExitCommand { editingTaskId = nil }
+            } else {
+                Text(task.name)
+                    .strikethrough(task.status == .done)
+                    .foregroundStyle(task.status == .done ? .secondary : .primary)
+                    .lineLimit(1)
+                    .onTapGesture(count: 2) {
+                        editingTaskId = task.id
+                        editingTaskName = task.name
+                    }
+            }
+
+            Spacer()
+
+            if task.status != .done && editingTaskId != task.id {
+                Text(task.status.label)
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(ColorPalette.statusColor(task.status).opacity(0.12))
+                    .clipShape(Capsule())
+            }
+
+            if hoveredTaskId == task.id && editingTaskId != task.id {
+                Button(action: { deleteTask(task.id) }) {
+                    Image(systemName: "xmark")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18, height: 18)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+                .help("删除任务")
+                .transition(.opacity)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(hoveredTaskId == task.id ? Color.primary.opacity(0.03) : .clear)
+        )
+        .onHover { hovered in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                hoveredTaskId = hovered ? task.id : nil
+            }
+        }
+        .contextMenu {
+            Button(task.status == .done ? "标记未完成" : "标记完成") {
+                toggleTaskStatus(task.id)
+            }
+            Button("重命名") {
+                editingTaskId = task.id
+                editingTaskName = task.name
+            }
+            Divider()
+            Button("删除", role: .destructive) {
+                deleteTask(task.id)
+            }
+        }
+    }
+
+    // MARK: - Draft Section
+
+    private var draftSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("草稿", systemImage: "doc.text")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            DraftEditorView(projectId: project.id)
+                .frame(minHeight: 160)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        }
+    }
+
+    // MARK: - Actions
+
+    private func updateField(_ transform: (inout Project) -> Void) {
+        var updated = project
+        transform(&updated)
+        store.updateProject(updated)
+    }
+
+    private func changeStatus(_ newStatus: ProjectStatus) {
+        updateField {
+            $0.status = newStatus
+            $0.statusHistory.append(StatusChange(status: newStatus, date: DateHelpers.today()))
+            if newStatus == .done {
+                $0.completedDate = DateHelpers.today()
+            } else {
+                $0.completedDate = nil
+            }
+        }
+    }
+
+    private func changePriority(_ newPriority: Priority) {
+        updateField { $0.priority = newPriority }
+    }
+
+    private func submitTask() {
+        let name = newTaskName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        var updated = project
+        let task = ProjectTask(
+            id: "t\(Int(Date().timeIntervalSince1970))",
+            name: name, status: .notStarted, currentStatus: ""
+        )
+        updated.tasks.append(task)
+        store.updateProject(updated)
+        newTaskName = ""
+        isTaskInputFocused = true
+    }
+
+    private func deleteTask(_ taskId: String) {
+        updateField { $0.tasks.removeAll { $0.id == taskId } }
+    }
+
+    private func toggleTaskStatus(_ taskId: String) {
+        updateField { p in
+            if let idx = p.tasks.firstIndex(where: { $0.id == taskId }) {
+                p.tasks[idx].status = p.tasks[idx].status == .done ? .notStarted : .done
+            }
+        }
+    }
+
+    private func commitTaskEdit() {
+        guard let taskId = editingTaskId else { return }
+        let name = editingTaskName.trimmingCharacters(in: .whitespaces)
+        if !name.isEmpty {
+            updateField { p in
+                if let idx = p.tasks.firstIndex(where: { $0.id == taskId }) {
+                    p.tasks[idx].name = name
+                }
+            }
+        }
+        editingTaskId = nil
+    }
+}
+
+// MARK: - Smooth TextField (always TextField, looks like text when unfocused)
+
+struct SmoothTextField: View {
+    let text: String
+    let placeholder: String
+    let font: Font
+    var color: Color = .primary
+    let onCommit: (String) -> Void
+
+    @State private var draft: String = ""
+    @State private var hasAppeared = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(placeholder, text: $draft)
+            .font(font)
+            .foregroundStyle(color)
+            .textFieldStyle(.plain)
+            .focused($focused)
+            .onSubmit { commit() }
+            .onExitCommand { draft = text }
+            .onChange(of: focused) { _, newVal in
+                if !newVal { commit() }
+            }
+            .onAppear {
+                draft = text
+                hasAppeared = true
+            }
+            .onChange(of: text) { _, newVal in
+                if !focused { draft = newVal }
+            }
+    }
+
+    private func commit() {
+        let trimmed = draft.trimmingCharacters(in: .whitespaces)
+        if trimmed != text {
+            onCommit(trimmed)
+        }
+    }
+}
+
+// MARK: - Inline Tags Editor
+
+struct InlineTagsEditor: View {
+    let tags: [String]
+    let onUpdate: ([String]) -> Void
+
+    @State private var isEditing = false
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        if isEditing {
+            TextField("用逗号分隔标签", text: $draft)
+                .font(.caption)
+                .textFieldStyle(.plain)
+                .focused($focused)
+                .onSubmit { commit() }
+                .onExitCommand { isEditing = false }
+                .onChange(of: focused) { _, newVal in
+                    if !newVal { commit() }
+                }
+        } else {
+            HStack(spacing: 4) {
+                Image(systemName: "tag")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                if tags.isEmpty {
+                    Text("添加标签…")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    ForEach(tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(.quaternary)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+            .onTapGesture {
+                draft = tags.joined(separator: ", ")
+                isEditing = true
+                focused = true
+            }
+        }
+    }
+
+    private func commit() {
+        let newTags = draft.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        if newTags != tags { onUpdate(newTags) }
+        isEditing = false
+    }
+}
+
+// MARK: - Inline Date Picker
+
+struct InlineDatePicker: View {
+    let dateString: String
+    let label: String
+    let icon: String
+    let onCommit: (String) -> Void
+
+    @State private var pickerDate = Date()
+    @State private var hasDate: Bool = false
+    @State private var showPicker = false
+
+    private static let storeFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static let displayFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy/MM/dd"
+        return f
+    }()
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if hasDate {
+                Text(Self.displayFmt.string(from: pickerDate))
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .onTapGesture { showPicker.toggle() }
+                    .popover(isPresented: $showPicker) {
+                        DatePicker(
+                            "",
+                            selection: $pickerDate,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                        .padding(8)
+                        .onChange(of: pickerDate) { _, newVal in
+                            onCommit(Self.storeFmt.string(from: newVal))
+                        }
+                    }
+
+                Button(action: {
+                    hasDate = false
+                    onCommit("")
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .onTapGesture {
+                        pickerDate = Date()
+                        hasDate = true
+                        showPicker = true
+                    }
+            }
+        }
+        .onAppear {
+            if let d = Self.storeFmt.date(from: dateString) {
+                pickerDate = d
+                hasDate = true
+            } else {
+                hasDate = !dateString.isEmpty
             }
         }
     }

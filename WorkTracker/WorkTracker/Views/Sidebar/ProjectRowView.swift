@@ -12,7 +12,7 @@ struct ProjectRowView: View {
                 Text(project.name)
                     .fontWeight(.medium)
                 Spacer()
-                Text(project.status.rawValue.replacingOccurrences(of: "_", with: " "))
+                Text(project.status.label)
                     .font(.caption)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

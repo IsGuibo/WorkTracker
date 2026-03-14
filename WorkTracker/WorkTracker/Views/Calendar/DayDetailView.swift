@@ -5,6 +5,9 @@ struct DayDetailView: View {
     let onBack: () -> Void
     let onProjectTap: (String) -> Void
     @EnvironmentObject var store: DataStore
+    @State private var editingId: String?
+    @State private var editSummary = ""
+    @State private var editManDays = ""
 
     var entries: [LogEntry] {
         store.logsForDate(date)
@@ -44,14 +47,17 @@ struct DayDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if let hours = entry.hoursSpent {
-                            Text("\(hours, specifier: "%.1f")h")
+                        if let md = entry.manDays {
+                            Text(String(format: "%.1f人天", md))
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { onProjectTap(entry.projectId) }
+                    .contextMenu {
+                        Button("删除", role: .destructive) {
+                            store.deleteLogEntry(date: date, entryId: entry.id)
+                        }
+                    }
                 }
                 .frame(height: 200)
             }

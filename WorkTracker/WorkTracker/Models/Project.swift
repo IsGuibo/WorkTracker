@@ -22,6 +22,7 @@ struct Project: Codable, Identifiable {
     var currentStatus: String
     var startDate: String
     var dueDate: String?
+    var completedDate: String?
     var statusHistory: [StatusChange]
     var description: String
     var tasks: [ProjectTask]

@@ -10,12 +10,20 @@ final class DataStore: ObservableObject {
 
     let directory: URL
     private var fileWatcher: FileWatcher?
+    private var ignoreNextReload = false
 
     init(directory: URL, enableFileWatcher: Bool = true) {
         self.directory = directory
         if enableFileWatcher {
             fileWatcher = FileWatcher(directory: directory) { [weak self] in
-                Task { @MainActor in self?.loadAll() }
+                Task { @MainActor in
+                    guard let self else { return }
+                    if self.ignoreNextReload {
+                        self.ignoreNextReload = false
+                        return
+                    }
+                    self.loadAll()
+                }
             }
         }
     }
@@ -89,9 +97,10 @@ final class DataStore: ObservableObject {
 
     func saveProjects() {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(
             ProjectContainer(projects: projects)) else { return }
+        ignoreNextReload = true
         try? data.write(to: directory.appendingPathComponent("projects.json"))
     }
 
@@ -105,5 +114,62 @@ final class DataStore: ObservableObject {
 
     func taskName(for taskId: String) -> String? {
         projects.flatMap(\.tasks).first { $0.id == taskId }?.name
+    }
+
+    // MARK: - 项目操作
+
+    func addProject(_ project: Project) {
+        projects.append(project)
+        saveProjects()
+    }
+
+    func deleteProject(id: String) {
+        projects.removeAll { $0.id == id }
+        saveProjects()
+    }
+
+    func updateProject(_ project: Project) {
+        if let idx = projects.firstIndex(where: { $0.id == project.id }) {
+            projects[idx] = project
+            saveProjects()
+        }
+    }
+
+    // MARK: - 日志操作
+
+    func saveDailyLogs() {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(
+            DailyLogContainer(logs: dailyLogs)) else { return }
+        ignoreNextReload = true
+        try? data.write(to: directory.appendingPathComponent("daily-logs.json"))
+    }
+
+    func addLogEntry(date: String, entry: LogEntry) {
+        if let idx = dailyLogs.firstIndex(where: { $0.date == date }) {
+            dailyLogs[idx].entries.append(entry)
+        } else {
+            dailyLogs.append(DailyLog(date: date, entries: [entry]))
+        }
+        saveDailyLogs()
+    }
+
+    func deleteLogEntry(date: String, entryId: String) {
+        if let idx = dailyLogs.firstIndex(where: { $0.date == date }) {
+            dailyLogs[idx].entries.removeAll { $0.id == entryId }
+            if dailyLogs[idx].entries.isEmpty {
+                dailyLogs.remove(at: idx)
+            }
+            saveDailyLogs()
+        }
+    }
+
+    func updateLogEntry(date: String, entry: LogEntry) {
+        if let dIdx = dailyLogs.firstIndex(where: { $0.date == date }),
+           let eIdx = dailyLogs[dIdx].entries.firstIndex(where: { $0.id == entry.id }) {
+            dailyLogs[dIdx].entries[eIdx] = entry
+            saveDailyLogs()
+        }
     }
 }

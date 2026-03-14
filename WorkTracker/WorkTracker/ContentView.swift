@@ -1,35 +1,19 @@
 import SwiftUI
 
-enum MainViewMode {
-    case projectDetail
+enum SidebarItem: Hashable {
     case calendar
+    case project(String)
 }
 
 struct ContentView: View {
     @EnvironmentObject var store: DataStore
-    @State private var selectedProjectId: String?
-    @State private var viewMode: MainViewMode = .projectDetail
+    @State private var selection: SidebarItem? = .calendar
 
     var body: some View {
         NavigationSplitView {
-            ProjectListView(selectedProjectId: $selectedProjectId)
+            SidebarView(selection: $selection)
         } detail: {
             VStack(spacing: 0) {
-                HStack {
-                    Text(store.directory.path)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Spacer()
-                    Picker("视图", selection: $viewMode) {
-                        Text("项目").tag(MainViewMode.projectDetail)
-                        Text("日历").tag(MainViewMode.calendar)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 150)
-                }
-                .padding(8)
-
                 if store.hasError {
                     HStack {
                         Image(systemName: "exclamationmark.triangle")
@@ -41,21 +25,26 @@ struct ContentView: View {
                     .foregroundStyle(.red)
                 }
 
-                switch viewMode {
-                case .projectDetail:
-                    if let id = selectedProjectId,
-                       let project = store.projects.first(where: { $0.id == id }) {
-                        ProjectDetailView(project: project)
-                    } else {
-                        ContentUnavailableView("选择一个项目", systemImage: "folder")
-                    }
+                switch selection {
                 case .calendar:
                     CalendarMonthView(
-                        selectedProjectId: $selectedProjectId,
-                        viewMode: $viewMode
+                        onProjectTap: { id in
+                            selection = .project(id)
+                        }
                     )
+                case .project(let id):
+                    if let project = store.projects.first(where: { $0.id == id }) {
+                        ProjectDetailView(project: project)
+                    } else {
+                        ContentUnavailableView("项目不存在", systemImage: "folder")
+                            .frame(maxHeight: .infinity)
+                    }
+                case nil:
+                    ContentUnavailableView("选择一个项目或日历", systemImage: "folder")
+                        .frame(maxHeight: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 }

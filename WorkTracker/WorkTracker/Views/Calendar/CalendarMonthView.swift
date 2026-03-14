@@ -5,95 +5,590 @@ struct CalendarMonthView: View {
     @State private var year: Int = Calendar.current.component(.year, from: Date())
     @State private var month: Int = Calendar.current.component(.month, from: Date())
     @State private var selectedDate: String?
-    @Binding var selectedProjectId: String?
-    @Binding var viewMode: MainViewMode
+    @State private var popoverBarId: String?
+    @State private var showWeeklyLog = false
+    @State private var editingEntryId: String?
+    @State private var editSummary: String = ""
+    @State private var editManDays: String = ""
+    @State private var hoveredEntryId: String?
+    var onProjectTap: (String) -> Void
 
     private let weekdays = ["日", "一", "二", "三", "四", "五", "六"]
+    private let gridSpacing: CGFloat = 1
+
+    private var firstWeekday: Int {
+        DateHelpers.firstWeekdayOfMonth(year: year, month: month)
+    }
+
+    private var daysInMonth: Int {
+        DateHelpers.daysInMonth(year: year, month: month)
+    }
+
+    private var weeks: [[Int?]] {
+        var result: [[Int?]] = []
+        var current: [Int?] = Array(repeating: nil, count: firstWeekday - 1)
+        for day in 1...daysInMonth {
+            current.append(day)
+            if current.count == 7 {
+                result.append(current)
+                current = []
+            }
+        }
+        if !current.isEmpty {
+            while current.count < 7 { current.append(nil) }
+            result.append(current)
+        }
+        return result
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button(action: prevMonth) {
-                    Image(systemName: "chevron.left")
-                }
-                Spacer()
-                Text("\(String(year))年\(month)月")
-                    .font(.title3.bold())
-                Spacer()
-                Button(action: nextMonth) {
-                    Image(systemName: "chevron.right")
+        ScrollView {
+            VStack(spacing: 16) {
+                // 月份导航
+                monthHeader
+                    .padding(.horizontal, 24)
+                    .padding(.top, 20)
+
+                // 日历卡片
+                calendarCard
+                    .padding(.horizontal, 20)
+
+                // 选中日期详情
+                if let date = selectedDate {
+                    dayDetailCard(date: date)
+                        .padding(.horizontal, 20)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .padding()
+            .padding(.bottom, 20)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .animation(.easeInOut(duration: 0.2), value: selectedDate)
+    }
 
-            HStack(spacing: 0) {
-                ForEach(weekdays, id: \.self) { day in
-                    Text(day)
-                        .font(.caption.bold())
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(.secondary)
-                }
+    // MARK: - Month Header
+
+    private var monthHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(year) + "年")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("\(month)月")
+                    .font(.system(.largeTitle, design: .rounded).bold())
             }
-            .padding(.horizontal)
-
-            let days = generateDays()
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
-                ForEach(days, id: \.self) { day in
-                    if day == 0 {
-                        Color.clear.frame(height: 32)
-                    } else {
-                        let dateStr = String(format: "%04d-%02d-%02d", year, month, day)
-                        let hasLogs = !store.logsForDate(dateStr).isEmpty
-                        Button(action: {
-                            selectedDate = dateStr
-                        }) {
-                            Text("\(day)")
-                                .font(.callout)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 32)
-                                .background(hasLogs ? Color.accentColor.opacity(0.1) : .clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .padding(.horizontal)
-
-            Divider().padding(.vertical, 8)
-
-            GanttBarView(
-                year: year, month: month,
-                projects: store.projects,
-                onProjectTap: { projectId in
-                    selectedProjectId = projectId
-                    viewMode = .projectDetail
-                }
-            )
 
             Spacer()
 
-            if let date = selectedDate {
-                Divider()
-                DayDetailView(
-                    date: date,
-                    onBack: { selectedDate = nil },
-                    onProjectTap: { projectId in
-                        selectedProjectId = projectId
-                        viewMode = .projectDetail
-                    }
-                )
+            HStack(spacing: 4) {
+                Button(action: { showWeeklyLog = true }) {
+                    Label("记录工时", systemImage: "clock")
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showWeeklyLog) {
+                    WeeklyLogSheet()
+                }
+
+                Button(action: goToday) {
+                    Text("今天")
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: prevMonth) {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 28, height: 28)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: nextMonth) {
+                    Image(systemName: "chevron.right")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 28, height: 28)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 
-    private func generateDays() -> [Int] {
-        let firstWeekday = DateHelpers.firstWeekdayOfMonth(year: year, month: month)
-        let daysCount = DateHelpers.daysInMonth(year: year, month: month)
-        var days: [Int] = Array(repeating: 0, count: firstWeekday - 1)
-        days += Array(1...daysCount)
-        return days
+    // MARK: - Calendar Card
+
+    private var calendarCard: some View {
+        VStack(spacing: 0) {
+            // 星期标题行
+            HStack(spacing: 0) {
+                ForEach(Array(weekdays.enumerated()), id: \.offset) { idx, day in
+                    Text(day)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+            }
+
+            Divider().opacity(0.5)
+
+            // 日期网格
+            let activeProjects = ganttProjects()
+            VStack(spacing: 0) {
+                ForEach(Array(weeks.enumerated()), id: \.offset) { weekIdx, week in
+                    weekRow(week: week, activeProjects: activeProjects)
+                    if weekIdx < weeks.count - 1 {
+                        Divider().opacity(0.3)
+                    }
+                }
+            }
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
     }
+
+    // MARK: - Week Row
+
+    @ViewBuilder
+    private func weekRow(week: [Int?], activeProjects: [GanttProject]) -> some View {
+        VStack(spacing: 0) {
+            // 日期数字行
+            HStack(spacing: 0) {
+                ForEach(0..<7, id: \.self) { col in
+                    dateCell(day: week[col], col: col)
+                }
+            }
+
+            // 甘特条
+            let weekBars = barsForWeek(week: week, activeProjects: activeProjects)
+            if !weekBars.isEmpty {
+                GeometryReader { geo in
+                    let colWidth = geo.size.width / 7.0
+                    ZStack(alignment: .topLeading) {
+                        ForEach(weekBars) { bar in
+                            let x = colWidth * CGFloat(bar.startCol) + 3
+                            let w = colWidth * CGFloat(bar.endCol - bar.startCol + 1) - 6
+                            ganttBarView(bar: bar, width: max(w, 6))
+                                .offset(x: x, y: CGFloat(bar.lane) * 8.0)
+                        }
+                    }
+                }
+                .frame(height: CGFloat(maxLane(weekBars) + 1) * 8.0 + 2)
+                .padding(.bottom, 4)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    // MARK: - Gantt Bar View
+
+    private func ganttBarView(bar: WeekBar, width: CGFloat) -> some View {
+        let barColor = ColorPalette.color(for: bar.projectId)
+        let project = store.projects.first(where: { $0.id == bar.projectId })
+
+        return RoundedRectangle(cornerRadius: 3)
+            .fill(barColor.opacity(bar.isDone ? 0.25 : 0.6))
+            .frame(width: width, height: 5)
+            .help(bar.name + (bar.isDone ? " (已完成)" : ""))
+            .popover(isPresented: Binding(
+                get: { popoverBarId == bar.id },
+                set: { if !$0 { popoverBarId = nil } }
+            ), arrowEdge: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(barColor)
+                            .frame(width: 8, height: 8)
+                        Text(bar.name)
+                            .font(.subheadline.weight(.semibold))
+                    }
+
+                    if let project = project {
+                        HStack(spacing: 12) {
+                            Label(project.status.label, systemImage: "circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(ColorPalette.statusColor(project.status))
+                            if let due = project.dueDate {
+                                Label(due, systemImage: "calendar")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if !project.currentStatus.isEmpty {
+                            Text(project.currentStatus)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+
+                    Divider()
+
+                    Button(action: {
+                        popoverBarId = nil
+                        onProjectTap(bar.projectId)
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.right.circle")
+                            Text("查看项目详情")
+                        }
+                        .font(.caption.weight(.medium))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.accentColor)
+                }
+                .padding(12)
+                .frame(minWidth: 180)
+            }
+            .onTapGesture {
+                popoverBarId = popoverBarId == bar.id ? nil : bar.id
+            }
+    }
+
+    // MARK: - Date Cell
+
+    @ViewBuilder
+    private func dateCell(day: Int?, col: Int) -> some View {
+        if let day = day {
+            let dateStr = String(format: "%04d-%02d-%02d", year, month, day)
+            let logs = store.logsForDate(dateStr)
+            let isToday = dateStr == DateHelpers.today()
+            let isSelected = dateStr == selectedDate
+            let isWeekend = col == 0 || col == 6
+
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    selectedDate = selectedDate == dateStr ? nil : dateStr
+                }
+            }) {
+                VStack(spacing: 3) {
+                    ZStack {
+                        if isSelected {
+                            Circle()
+                                .fill(Color.accentColor)
+                                .frame(width: 30, height: 30)
+                        } else if isToday {
+                            Circle()
+                                .fill(Color.accentColor.opacity(0.12))
+                                .frame(width: 30, height: 30)
+                        }
+
+                        Text("\(day)")
+                            .font(.system(.callout, design: .rounded).weight(
+                                isToday || isSelected ? .bold : .regular
+                            ))
+                            .foregroundStyle(
+                                isSelected ? .white :
+                                isToday ? Color.accentColor :
+                                isWeekend ? .secondary : .primary
+                            )
+                    }
+                    .frame(height: 30)
+
+                    // 日志指示点
+                    HStack(spacing: 2) {
+                        if !logs.isEmpty {
+                            ForEach(0..<min(logs.count, 3), id: \.self) { i in
+                                Circle()
+                                    .fill(ColorPalette.color(for: logs[i].projectId).opacity(0.7))
+                                    .frame(width: 4, height: 4)
+                            }
+                        } else {
+                            Circle()
+                                .fill(Color.clear)
+                                .frame(width: 4, height: 4)
+                        }
+                    }
+                    .frame(height: 4)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 46)
+        }
+    }
+
+    // MARK: - Day Detail Card
+
+    private func dayDetailCard(date: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(formatDateTitle(date))
+                    .font(.headline)
+                Spacer()
+                Button(action: { selectedDate = nil }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+            }
+
+            let entries = store.logsForDate(date)
+            if entries.isEmpty {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 6) {
+                        Image(systemName: "tray")
+                            .font(.title2)
+                            .foregroundStyle(.tertiary)
+                        Text("暂无工作记录")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 16)
+                    Spacer()
+                }
+            } else {
+                ForEach(entries) { entry in
+                    // 展示模式
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(ColorPalette.color(for: entry.projectId))
+                            .frame(width: 3, height: 32)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(store.projectName(for: entry.projectId))
+                                .font(.subheadline.weight(.medium))
+                            if !entry.summary.isEmpty {
+                                Text(entry.summary)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        Spacer()
+
+                        if let md = entry.manDays {
+                            Text(String(format: "%.1f人天", md))
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.quaternary, in: Capsule())
+                        }
+
+                        // 悬浮操作按钮
+                        if hoveredEntryId == entry.id {
+                            HStack(spacing: 2) {
+                                Button(action: {
+                                    editSummary = entry.summary
+                                    editManDays = entry.manDays.map { String(format: "%.1f", $0) } ?? ""
+                                    editingEntryId = entry.id
+                                }) {
+                                    Image(systemName: "pencil")
+                                        .font(.caption2)
+                                        .frame(width: 22, height: 22)
+                                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+                                }
+                                .buttonStyle(.plain)
+                                .help("编辑")
+
+                                Button(action: {
+                                    store.deleteLogEntry(date: date, entryId: entry.id)
+                                }) {
+                                    Image(systemName: "trash")
+                                        .font(.caption2)
+                                        .foregroundStyle(.red.opacity(0.8))
+                                        .frame(width: 22, height: 22)
+                                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+                                }
+                                .buttonStyle(.plain)
+                                .help("删除")
+                            }
+                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(hoveredEntryId == entry.id ? Color.primary.opacity(0.04) : Color.clear)
+                    )
+                    .onHover { isHovered in
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            hoveredEntryId = isHovered ? entry.id : nil
+                        }
+                    }
+                    .popover(isPresented: Binding(
+                        get: { editingEntryId == entry.id },
+                        set: { if !$0 { editingEntryId = nil } }
+                    ), arrowEdge: .trailing) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("编辑记录")
+                                .font(.subheadline.weight(.semibold))
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("人天")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                TextField("0.0", text: $editManDays)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 120)
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("备注")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                TextField("可选", text: $editSummary)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 200)
+                            }
+
+                            HStack {
+                                Spacer()
+                                Button("取消") {
+                                    editingEntryId = nil
+                                }
+                                .keyboardShortcut(.escape, modifiers: [])
+                                Button("保存") {
+                                    saveEdit(date: date, entry: entry)
+                                }
+                                .keyboardShortcut(.return, modifiers: [])
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                        }
+                        .padding(14)
+                        .frame(width: 240)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+    }
+
+    private func formatDateTitle(_ dateStr: String) -> String {
+        let parts = dateStr.split(separator: "-")
+        guard parts.count == 3 else { return dateStr }
+        return "\(parts[1])月\(parts[2])日"
+    }
+
+    private func saveEdit(date: String, entry: LogEntry) {
+        var updated = entry
+        updated.summary = editSummary.trimmingCharacters(in: .whitespaces)
+        updated.manDays = Double(editManDays)
+        store.updateLogEntry(date: date, entry: updated)
+        editingEntryId = nil
+    }
+
+    // MARK: - Gantt Data
+
+    struct GanttProject {
+        let id: String
+        let name: String
+        let isDone: Bool
+        let startDay: Int
+        let endDay: Int
+    }
+
+    struct WeekBar: Identifiable {
+        var id: String { "\(projectId)-\(startCol)-\(endCol)" }
+        let projectId: String
+        let name: String
+        let isDone: Bool
+        let startCol: Int
+        let endCol: Int
+        let lane: Int
+    }
+
+    private func ganttProjects() -> [GanttProject] {
+        let monthStart = String(format: "%04d-%02d-01", year, month)
+        let monthEnd = String(format: "%04d-%02d-%02d", year, month, daysInMonth)
+        let today = DateHelpers.today()
+
+        var result: [GanttProject] = []
+        for project in store.projects {
+            // 跳过未开始且没有开始日期的项目
+            guard !project.startDate.isEmpty else { continue }
+
+            let projStart = project.startDate
+            // 结束日期：已完成优先用 completedDate，否则取截止日期或今天
+            let projEnd: String
+            if project.status == .done {
+                projEnd = project.completedDate ?? project.dueDate ?? today
+            } else {
+                projEnd = max(project.dueDate ?? today, today)
+            }
+
+            // 裁剪到当月范围
+            let cs = max(projStart, monthStart)
+            let ce = min(projEnd, monthEnd)
+            guard cs <= ce else { continue }
+
+            if let sd = dayOfMonth(cs), let ed = dayOfMonth(ce) {
+                result.append(GanttProject(
+                    id: project.id, name: project.name,
+                    isDone: project.status == .done,
+                    startDay: sd, endDay: ed
+                ))
+            }
+        }
+        return result
+    }
+
+    private func barsForWeek(week: [Int?], activeProjects: [GanttProject]) -> [WeekBar] {
+        let daysInWeek = week.compactMap { $0 }
+        guard let weekStart = daysInWeek.first, let weekEnd = daysInWeek.last else { return [] }
+
+        var bars: [WeekBar] = []
+        var laneAssignment: [String: Int] = [:]
+        var nextLane = 0
+
+        for gp in activeProjects {
+            let overlapStart = max(gp.startDay, weekStart)
+            let overlapEnd = min(gp.endDay, weekEnd)
+            guard overlapStart <= overlapEnd else { continue }
+
+            let startCol = week.firstIndex(where: { $0 == overlapStart }) ?? 0
+            let endCol = week.firstIndex(where: { $0 == overlapEnd }) ?? 6
+
+            let lane: Int
+            if let existing = laneAssignment[gp.id] {
+                lane = existing
+            } else {
+                lane = nextLane
+                laneAssignment[gp.id] = lane
+                nextLane += 1
+            }
+
+            bars.append(WeekBar(
+                projectId: gp.id, name: gp.name, isDone: gp.isDone,
+                startCol: startCol, endCol: endCol, lane: lane
+            ))
+        }
+        return bars
+    }
+
+    private func maxLane(_ bars: [WeekBar]) -> Int {
+        bars.map(\.lane).max() ?? 0
+    }
+
+    private func dayOfMonth(_ dateStr: String) -> Int? {
+        let parts = dateStr.split(separator: "-")
+        guard parts.count == 3, let d = Int(parts[2]) else { return nil }
+        return min(d, daysInMonth)
+    }
+
+    // MARK: - Navigation
 
     private func prevMonth() {
         if month == 1 { year -= 1; month = 12 } else { month -= 1 }
@@ -103,5 +598,11 @@ struct CalendarMonthView: View {
     private func nextMonth() {
         if month == 12 { year += 1; month = 1 } else { month += 1 }
         selectedDate = nil
+    }
+
+    private func goToday() {
+        year = Calendar.current.component(.year, from: Date())
+        month = Calendar.current.component(.month, from: Date())
+        selectedDate = DateHelpers.today()
     }
 }
