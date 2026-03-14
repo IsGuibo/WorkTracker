@@ -11,12 +11,13 @@ struct ProjectDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 0) {
                 projectHeader
+                Divider()
                 taskSection
+                Divider()
                 draftSection
             }
-            .padding(24)
             .frame(maxWidth: 640, alignment: .leading)
         }
         .frame(maxWidth: .infinity)
@@ -30,86 +31,92 @@ struct ProjectDetailView: View {
     // MARK: - Header
 
     private var projectHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
-                Circle()
-                    .fill(ColorPalette.color(for: project.id))
-                    .frame(width: 10, height: 10)
-                SmoothTextField(
-                    text: project.name,
-                    placeholder: "项目名称",
-                    font: .title2.bold()
-                ) { val in
-                    updateField { $0.name = val }
+        VStack(alignment: .leading, spacing: 14) {
+            // 标题行：左侧色块 + 项目名，右侧状态/优先级
+            HStack(alignment: .center) {
+                HStack(alignment: .center, spacing: 10) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(ColorPalette.color(for: project.id))
+                        .frame(width: 4, height: 24)
+                    SmoothTextField(
+                        text: project.name,
+                        placeholder: "项目名称",
+                        font: .title2.bold()
+                    ) { val in updateField { $0.name = val } }
+                }
+                Spacer(minLength: 12)
+                HStack(spacing: 6) {
+                    statusMenu
+                    priorityMenu
                 }
             }
 
-            HStack(spacing: 6) {
-                statusMenu
-                priorityMenu
-            }
-
-            HStack(spacing: 6) {
+            // 当前进展 callout
+            HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "bolt.fill")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(Color.accentColor)
+                    .padding(.top, 2)
                 SmoothTextField(
                     text: project.currentStatus,
                     placeholder: "当前进展…",
-                    font: .subheadline.weight(.medium)
-                ) { val in
-                    updateField { $0.currentStatus = val }
+                    font: .subheadline
+                ) { val in updateField { $0.currentStatus = val } }
+            }
+            .padding(.vertical, 9)
+            .padding(.horizontal, 11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.accentColor.opacity(0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+
+            // 日期行：开始 → 截止（→ 完成）
+            HStack(spacing: 10) {
+                InlineDatePicker(
+                    dateString: project.startDate,
+                    label: "开始日期",
+                    icon: "calendar"
+                ) { val in updateField { $0.startDate = val } }
+
+                Image(systemName: "arrow.right")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+
+                InlineDatePicker(
+                    dateString: project.dueDate ?? "",
+                    label: "截止日期",
+                    icon: "flag"
+                ) { val in updateField { $0.dueDate = val.isEmpty ? nil : val } }
+
+                if project.status == .done || project.completedDate != nil {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(width: 1, height: 12)
+                    InlineDatePicker(
+                        dateString: project.completedDate ?? "",
+                        label: "完成日期",
+                        icon: "checkmark.circle"
+                    ) { val in updateField { $0.completedDate = val.isEmpty ? nil : val } }
                 }
             }
 
-            Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 16) {
-                    InlineDatePicker(
-                        dateString: project.startDate,
-                        label: "开始日期",
-                        icon: "calendar"
-                    ) { val in
-                        updateField { $0.startDate = val }
-                    }
-                    InlineDatePicker(
-                        dateString: project.dueDate ?? "",
-                        label: "截止日期",
-                        icon: "flag"
-                    ) { val in
-                        updateField { $0.dueDate = val.isEmpty ? nil : val }
-                    }
-                    if project.status == .done || project.completedDate != nil {
-                        InlineDatePicker(
-                            dateString: project.completedDate ?? "",
-                            label: "完成日期",
-                            icon: "checkmark.circle"
-                        ) { val in
-                            updateField { $0.completedDate = val.isEmpty ? nil : val }
-                        }
-                    }
-                }
-
-                InlineTagsEditor(tags: project.tags) { newTags in
-                    updateField { $0.tags = newTags }
-                }
+            // 标签
+            InlineTagsEditor(tags: project.tags) { newTags in
+                updateField { $0.tags = newTags }
             }
 
+            // 描述
             SmoothTextField(
                 text: project.description,
                 placeholder: "添加项目描述…",
                 font: .callout,
                 color: .secondary
-            ) { val in
-                updateField { $0.description = val }
-            }
+            ) { val in updateField { $0.description = val } }
         }
-        .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        .padding(24)
     }
+
+    // MARK: - Menus
 
     private var statusMenu: some View {
         Menu {
@@ -158,61 +165,66 @@ struct ProjectDetailView: View {
     // MARK: - Task Section
 
     private var taskSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Section 标题
             HStack {
-                Label("子任务", systemImage: "checklist")
-                    .font(.subheadline.weight(.semibold))
+                Text("子任务")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .kerning(0.5)
                 Spacer()
                 if !project.tasks.isEmpty {
                     let done = project.tasks.filter { $0.status == .done }.count
-                    Text("\(done)/\(project.tasks.count)")
-                        .font(.caption)
+                    Text("\(done) / \(project.tasks.count)")
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.tertiary)
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
 
-            VStack(spacing: 0) {
-                ForEach(project.tasks) { task in
-                    taskRow(task)
-                    if task.id != project.tasks.last?.id {
-                        Divider().padding(.leading, 28)
-                    }
+            // 任务行
+            ForEach(project.tasks) { task in
+                taskRow(task)
+                if task.id != project.tasks.last?.id {
+                    Divider().padding(.leading, 56)
                 }
-
-                if !project.tasks.isEmpty {
-                    Divider()
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle")
-                        .foregroundStyle(isTaskInputFocused ? Color.accentColor : Color.gray)
-                        .font(.body)
-                    TextField("添加新任务…", text: $newTaskName)
-                        .textFieldStyle(.plain)
-                        .focused($isTaskInputFocused)
-                        .onSubmit { submitTask() }
-                    if !newTaskName.isEmpty {
-                        Button("添加") { submitTask() }
-                            .font(.caption.weight(.medium))
-                            .buttonStyle(.plain)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
             }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+
+            if !project.tasks.isEmpty {
+                Divider().padding(.leading, 24)
+            }
+
+            // 添加任务输入行
+            HStack(spacing: 10) {
+                Image(systemName: "plus.circle")
+                    .foregroundStyle(isTaskInputFocused ? Color.accentColor : Color.secondary.opacity(0.5))
+                    .font(.body)
+                TextField("添加任务…", text: $newTaskName)
+                    .textFieldStyle(.plain)
+                    .focused($isTaskInputFocused)
+                    .onSubmit { submitTask() }
+                if !newTaskName.isEmpty {
+                    Button("添加") { submitTask() }
+                        .font(.caption.weight(.medium))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 9)
+            .padding(.bottom, 5)
         }
     }
 
     private func taskRow(_ task: ProjectTask) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Button(action: { toggleTaskStatus(task.id) }) {
-                Image(systemName: task.status == .done
-                      ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(ColorPalette.statusColor(task.status))
+                Image(systemName: task.status == .done ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(task.status == .done ? Color.green : Color.secondary)
+                    .font(.body)
             }
             .buttonStyle(.plain)
 
@@ -224,7 +236,7 @@ struct ProjectDetailView: View {
             } else {
                 Text(task.name)
                     .strikethrough(task.status == .done)
-                    .foregroundStyle(task.status == .done ? .secondary : .primary)
+                    .foregroundStyle(task.status == .done ? Color.secondary : Color.primary)
                     .lineLimit(1)
                     .onTapGesture(count: 2) {
                         editingTaskId = task.id
@@ -256,14 +268,12 @@ struct ProjectDetailView: View {
                 .transition(.opacity)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(hoveredTaskId == task.id ? Color.primary.opacity(0.03) : .clear)
-        )
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .background(hoveredTaskId == task.id ? Color.primary.opacity(0.04) : Color.clear)
         .onHover { hovered in
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.easeInOut(duration: 0.12)) {
                 hoveredTaskId = hovered ? task.id : nil
             }
         }
@@ -285,16 +295,20 @@ struct ProjectDetailView: View {
     // MARK: - Draft Section
 
     private var draftSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("草稿", systemImage: "doc.text")
-                .font(.subheadline.weight(.semibold))
+        VStack(alignment: .leading, spacing: 0) {
+            Text("草稿")
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .kerning(0.5)
+                .padding(.horizontal, 24)
+                .padding(.top, 14)
+                .padding(.bottom, 8)
 
             DraftEditorView(projectId: project.id)
-                .frame(minHeight: 160)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+                .frame(minHeight: 180)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
         }
     }
 
@@ -362,7 +376,7 @@ struct ProjectDetailView: View {
     }
 }
 
-// MARK: - Smooth TextField (always TextField, looks like text when unfocused)
+// MARK: - Smooth TextField
 
 struct SmoothTextField: View {
     let text: String
@@ -397,9 +411,7 @@ struct SmoothTextField: View {
 
     private func commit() {
         let trimmed = draft.trimmingCharacters(in: .whitespaces)
-        if trimmed != text {
-            onCommit(trimmed)
-        }
+        if trimmed != text { onCommit(trimmed) }
     }
 }
 
@@ -524,9 +536,11 @@ struct InlineDatePicker: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .onTapGesture {
-                        pickerDate = Date()
+                        let today = Date()
+                        pickerDate = today
                         hasDate = true
                         showPicker = true
+                        onCommit(Self.storeFmt.string(from: today))
                     }
             }
         }

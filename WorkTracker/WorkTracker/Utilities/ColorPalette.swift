@@ -2,12 +2,18 @@ import SwiftUI
 
 enum ColorPalette {
     // 避开状态色: blue(进行中), orange(等待), green(完成), gray(未开始/暂停)
+    // 按色相均匀分布，确保相邻颜色差异明显
     static let projectColors: [Color] = [
-        .purple, .pink, .indigo, .cyan, .mint,
-        .teal, .brown,
-        Color(red: 0.8, green: 0.3, blue: 0.4),   // 玫红
-        Color(red: 0.4, green: 0.3, blue: 0.7),   // 暗紫
-        Color(red: 0.2, green: 0.6, blue: 0.6),   // 青绿
+        Color(red: 0.86, green: 0.12, blue: 0.18),  // 番茄红   ~0°
+        Color(red: 0.90, green: 0.65, blue: 0.05),  // 琥珀黄   ~43°
+        Color(red: 0.32, green: 0.74, blue: 0.08),  // 草绿     ~100°
+        Color(red: 0.05, green: 0.58, blue: 0.55),  // 青碧     ~177°
+        Color(red: 0.10, green: 0.38, blue: 0.80),  // 宝蓝     ~218°
+        Color(red: 0.48, green: 0.08, blue: 0.85),  // 紫罗兰   ~270°
+        Color(red: 0.83, green: 0.08, blue: 0.65),  // 品红     ~300°
+        Color(red: 0.94, green: 0.32, blue: 0.52),  // 玫粉     ~335°
+        Color(red: 0.60, green: 0.34, blue: 0.08),  // 棕褐     (暖色系)
+        Color(red: 0.68, green: 0.18, blue: 0.32),  // 酒红     (深暗系)
     ]
 
     static func color(for projectId: String) -> Color {
@@ -28,9 +34,8 @@ enum ColorPalette {
         switch status {
         case .notStarted: .gray
         case .inProgress: .blue
-        case .waiting: .orange
+        case .paused: .orange
         case .done: .green
-        case .paused: .secondary
         }
     }
 

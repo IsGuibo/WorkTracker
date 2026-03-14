@@ -35,6 +35,7 @@ struct ContentView: View {
                 case .project(let id):
                     if let project = store.projects.first(where: { $0.id == id }) {
                         ProjectDetailView(project: project)
+                            .id(project.id)
                     } else {
                         ContentUnavailableView("项目不存在", systemImage: "folder")
                             .frame(maxHeight: .infinity)

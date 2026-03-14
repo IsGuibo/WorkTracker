@@ -3,15 +3,24 @@ import Foundation
 enum ProjectStatus: String, Codable, CaseIterable {
     case notStarted = "not_started"
     case inProgress = "in_progress"
-    case waiting, done, paused
+    case paused, done
 
     var label: String {
         switch self {
         case .notStarted: "未开始"
         case .inProgress: "进行中"
-        case .waiting: "等待中"
+        case .paused: "暂停"
         case .done: "已完成"
-        case .paused: "已暂停"
+        }
+    }
+
+    // 兼容旧数据：waiting → paused
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        if raw == "waiting" {
+            self = .paused
+        } else {
+            self = ProjectStatus(rawValue: raw) ?? .notStarted
         }
     }
 }

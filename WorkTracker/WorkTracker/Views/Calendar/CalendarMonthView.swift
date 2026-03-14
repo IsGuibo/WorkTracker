@@ -496,8 +496,7 @@ struct CalendarMonthView: View {
         let id: String
         let name: String
         let isDone: Bool
-        let startDay: Int
-        let endDay: Int
+        let segments: [(startDay: Int, endDay: Int)]  // 多段（暂停期为空白）
     }
 
     struct WeekBar: Identifiable {
@@ -511,36 +510,67 @@ struct CalendarMonthView: View {
     }
 
     private func ganttProjects() -> [GanttProject] {
-        let monthStart = String(format: "%04d-%02d-01", year, month)
-        let monthEnd = String(format: "%04d-%02d-%02d", year, month, daysInMonth)
+        let monthStartStr = String(format: "%04d-%02d-01", year, month)
+        let monthEndStr = String(format: "%04d-%02d-%02d", year, month, daysInMonth)
         let today = DateHelpers.today()
 
         var result: [GanttProject] = []
         for project in store.projects {
-            // 跳过未开始且没有开始日期的项目
             guard !project.startDate.isEmpty else { continue }
 
-            let projStart = project.startDate
-            // 结束日期：已完成优先用 completedDate，否则取截止日期或今天
-            let projEnd: String
-            if project.status == .done {
-                projEnd = project.completedDate ?? project.dueDate ?? today
+            let history = project.statusHistory.sorted { $0.date < $1.date }
+            var daySegments: [(Int, Int)] = []
+
+            if history.isEmpty || project.status == .notStarted {
+                // 未开始或无历史记录：整段显示到截止日期
+                let projEnd: String
+                if project.status == .done {
+                    projEnd = project.completedDate ?? project.dueDate ?? today
+                } else {
+                    projEnd = project.dueDate ?? today
+                }
+                let cs = max(project.startDate, monthStartStr)
+                let ce = min(projEnd, monthEndStr)
+                if cs <= ce, let sd = dayOfMonth(cs), let ed = dayOfMonth(ce) {
+                    daySegments.append((sd, ed))
+                }
             } else {
-                projEnd = max(project.dueDate ?? today, today)
+                // 从 statusHistory 解析 inProgress 区间，暂停期留空白
+                var isFirstInProgress = true
+                for i in 0..<history.count {
+                    let entry = history[i]
+                    guard entry.status == .inProgress else { continue }
+
+                    // 第一段 inProgress 以 project.startDate 为准（状态变更日期可能晚于实际开始）
+                    let segStart = isFirstInProgress ? min(entry.date, project.startDate) : entry.date
+                    isFirstInProgress = false
+                    let segEnd: String
+                    if i + 1 < history.count {
+                        segEnd = history[i + 1].date
+                    } else if project.status == .inProgress {
+                        segEnd = max(project.dueDate ?? today, today)
+                    } else if project.status == .done {
+                        segEnd = project.completedDate ?? today
+                    } else {
+                        // 当前为暂停状态，这段 inProgress 没有后续记录（数据异常），跳过
+                        continue
+                    }
+
+                    let cs = max(segStart, monthStartStr)
+                    let ce = min(segEnd, monthEndStr)
+                    guard cs <= ce else { continue }
+                    if let sd = dayOfMonth(cs), let ed = dayOfMonth(ce) {
+                        daySegments.append((sd, ed))
+                    }
+                }
             }
 
-            // 裁剪到当月范围
-            let cs = max(projStart, monthStart)
-            let ce = min(projEnd, monthEnd)
-            guard cs <= ce else { continue }
-
-            if let sd = dayOfMonth(cs), let ed = dayOfMonth(ce) {
-                result.append(GanttProject(
-                    id: project.id, name: project.name,
-                    isDone: project.status == .done,
-                    startDay: sd, endDay: ed
-                ))
-            }
+            guard !daySegments.isEmpty else { continue }
+            result.append(GanttProject(
+                id: project.id, name: project.name,
+                isDone: project.status == .done,
+                segments: daySegments
+            ))
         }
         return result
     }
@@ -554,12 +584,16 @@ struct CalendarMonthView: View {
         var nextLane = 0
 
         for gp in activeProjects {
-            let overlapStart = max(gp.startDay, weekStart)
-            let overlapEnd = min(gp.endDay, weekEnd)
-            guard overlapStart <= overlapEnd else { continue }
-
-            let startCol = week.firstIndex(where: { $0 == overlapStart }) ?? 0
-            let endCol = week.firstIndex(where: { $0 == overlapEnd }) ?? 6
+            // 收集该项目在本周有重叠的所有段
+            let overlapping = gp.segments.compactMap { seg -> (startCol: Int, endCol: Int)? in
+                let overlapStart = max(seg.startDay, weekStart)
+                let overlapEnd = min(seg.endDay, weekEnd)
+                guard overlapStart <= overlapEnd else { return nil }
+                let startCol = week.firstIndex(where: { $0 == overlapStart }) ?? 0
+                let endCol = week.firstIndex(where: { $0 == overlapEnd }) ?? 6
+                return (startCol, endCol)
+            }
+            guard !overlapping.isEmpty else { continue }
 
             let lane: Int
             if let existing = laneAssignment[gp.id] {
@@ -570,10 +604,12 @@ struct CalendarMonthView: View {
                 nextLane += 1
             }
 
-            bars.append(WeekBar(
-                projectId: gp.id, name: gp.name, isDone: gp.isDone,
-                startCol: startCol, endCol: endCol, lane: lane
-            ))
+            for seg in overlapping {
+                bars.append(WeekBar(
+                    projectId: gp.id, name: gp.name, isDone: gp.isDone,
+                    startCol: seg.startCol, endCol: seg.endCol, lane: lane
+                ))
+            }
         }
         return bars
     }

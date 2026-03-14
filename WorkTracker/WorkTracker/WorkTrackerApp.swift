@@ -18,13 +18,17 @@ struct WorkTrackerApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("工作追踪") {
             ContentView()
                 .environmentObject(dataStore)
                 .onAppear {
                     dataStore.loadAll()
                     NSApp.setActivationPolicy(.regular)
                     NSApp.activate(ignoringOtherApps: true)
+                    // 覆盖菜单栏左上角的应用名
+                    DispatchQueue.main.async {
+                        NSApp.mainMenu?.items.first?.title = "工作追踪"
+                    }
                 }
         }
         .defaultSize(width: 1100, height: 700)

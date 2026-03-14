@@ -1,4 +1,6 @@
 .DS_Store
+/*.app
+/AppIcon.iconset
 /.build
 /Packages
 xcuserdata/
