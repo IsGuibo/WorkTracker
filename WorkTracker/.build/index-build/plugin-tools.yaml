@@ -1,0 +1,47 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "WorkTracker-arm64-apple-macosx26.0-debug.module": ["<WorkTracker-arm64-apple-macosx26.0-debug.module>"]
+  "main": ["<WorkTracker-arm64-apple-macosx26.0-debug.module>"]
+  "test": ["<WorkTracker-arm64-apple-macosx26.0-debug.module>"]
+default: "main"
+nodes:
+  "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/ContentView.swift","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/Views/Settings/SettingsView.swift","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/WorkTrackerApp.swift"]
+    outputs: ["/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/sources"]
+    description: "Write auxiliary file /Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/sources"
+
+  "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"]
+    outputs: ["/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+
+  "<WorkTracker-arm64-apple-macosx26.0-debug.module>":
+    tool: phony
+    inputs: ["/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/Modules/WorkTracker.swiftmodule"]
+    outputs: ["<WorkTracker-arm64-apple-macosx26.0-debug.module>"]
+
+  "C.WorkTracker-arm64-apple-macosx26.0-debug.module":
+    tool: shell
+    inputs: ["/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/ContentView.swift","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/Views/Settings/SettingsView.swift","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/WorkTrackerApp.swift","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/sources"]
+    outputs: ["/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/Modules/WorkTracker.swiftmodule"]
+    description: "Compiling Swift Module 'WorkTracker' (3 sources)"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","WorkTracker","-emit-dependencies","-emit-module","-emit-module-path","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/Modules/WorkTracker.swiftmodule","-output-file-map","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/output-file-map.json","-incremental","@/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/sources","-I","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx14.0","-incremental","-enable-batch-mode","-serialize-diagnostics","-Onone","-enable-testing","-j8","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","WorkTracker_main","-swift-version","5","-Xfrontend","-experimental-lazy-typecheck","-Xfrontend","-experimental-skip-all-function-bodies","-Xfrontend","-experimental-allow-module-with-compiler-errors","-Xfrontend","-empty-abi-descriptor","-plugin-path","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","worktracker"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/Package.swift","/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

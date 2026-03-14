@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/master.swiftdeps"
+  },
+  "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/ContentView.swift": {
+    "dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/ContentView.d",
+    "object": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/ContentView.swift.o",
+    "swiftmodule": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/ContentView.swiftdeps",
+    "diagnostics": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/ContentView.dia"
+  },
+  "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/Views/Settings/SettingsView.swift": {
+    "dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/SettingsView.d",
+    "object": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/SettingsView.swift.o",
+    "swiftmodule": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/SettingsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/SettingsView.swiftdeps",
+    "diagnostics": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/SettingsView.dia"
+  },
+  "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/WorkTracker/WorkTrackerApp.swift": {
+    "dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/WorkTrackerApp.d",
+    "object": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/WorkTrackerApp.swift.o",
+    "swiftmodule": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/WorkTrackerApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/WorkTrackerApp.swiftdeps",
+    "diagnostics": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/index-build/arm64-apple-macosx/debug/WorkTracker.build/WorkTrackerApp.dia"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/arm64-apple-macosx/debug/WorkTrackerPackageTests.build/master.swiftdeps"
+  },
+  "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/arm64-apple-macosx/debug/WorkTrackerPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/arm64-apple-macosx/debug/WorkTrackerPackageTests.build/runner.d",
+    "object": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/arm64-apple-macosx/debug/WorkTrackerPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/arm64-apple-macosx/debug/WorkTrackerPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/arm64-apple-macosx/debug/WorkTrackerPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/huangguibo/IdeaProjects/frontend-test/WorkTracker/.build/arm64-apple-macosx/debug/WorkTrackerPackageTests.build/runner.dia"
+  }
+}
