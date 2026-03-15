@@ -509,18 +509,11 @@ struct InlineDatePicker: View {
     let onCommit: (String) -> Void
 
     @State private var pickerDate = Date()
-    @State private var hasDate: Bool = false
-    @State private var showPicker = false
+    @State private var hasDate = false
 
     private static let storeFmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-
-    private static let displayFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy/MM/dd"
         return f
     }()
 
@@ -531,44 +524,35 @@ struct InlineDatePicker: View {
                 .foregroundStyle(.secondary)
 
             if hasDate {
-                Text(Self.displayFmt.string(from: pickerDate))
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-                    .onTapGesture { showPicker.toggle() }
-                    .popover(isPresented: $showPicker) {
-                        DatePicker(
-                            "",
-                            selection: $pickerDate,
-                            displayedComponents: .date
-                        )
-                        .datePickerStyle(.graphical)
-                        .labelsHidden()
-                        .padding(8)
-                        .onChange(of: pickerDate) { _, newVal in
-                            onCommit(Self.storeFmt.string(from: newVal))
-                        }
+                // 使用系统原生 .compact 样式：带边框按钮 + 点击自动弹出日历 popover
+                DatePicker("", selection: $pickerDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .onChange(of: pickerDate) { _, newVal in
+                        onCommit(Self.storeFmt.string(from: newVal))
                     }
 
-                Button(action: {
+                Button {
                     hasDate = false
                     onCommit("")
-                }) {
+                } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
             } else {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .onTapGesture {
-                        let today = Date()
-                        pickerDate = today
-                        hasDate = true
-                        showPicker = true
-                        onCommit(Self.storeFmt.string(from: today))
-                    }
+                Button {
+                    pickerDate = Date()
+                    hasDate = true
+                    onCommit(Self.storeFmt.string(from: Date()))
+                } label: {
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
             }
         }
         .onAppear {
