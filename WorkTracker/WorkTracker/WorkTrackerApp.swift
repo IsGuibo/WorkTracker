@@ -1,6 +1,10 @@
 import SwiftUI
 import AppKit
 
+extension NSNotification.Name {
+    static let newProjectCommand = NSNotification.Name("WorkTracker.newProjectCommand")
+}
+
 @main
 struct WorkTrackerApp: App {
     @StateObject private var dataStore: DataStore
@@ -32,6 +36,15 @@ struct WorkTrackerApp: App {
                 }
         }
         .defaultSize(width: 1100, height: 700)
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("新建项目") {
+                    NotificationCenter.default.post(
+                        name: .newProjectCommand, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
+        }
         Settings {
             SettingsView()
         }

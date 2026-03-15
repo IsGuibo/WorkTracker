@@ -65,5 +65,8 @@ struct SidebarView: View {
                 selection = .project(project.id)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .newProjectCommand)) { _ in
+            showNewProject = true
+        }
     }
 }

@@ -66,10 +66,12 @@ final class DataStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testDraftReadWrite() throws {
+    func testDraftReadWrite() async throws {
         let store = DataStore(directory: tempDir, enableFileWatcher: false)
         store.loadAll()
         store.saveDraft(projectId: "p1", content: "# Draft")
+        // 等待后台写入完成
+        try await Task.sleep(for: .milliseconds(200))
         XCTAssertEqual(store.loadDraft(projectId: "p1"), "# Draft")
     }
 }

@@ -11,6 +11,7 @@ struct CalendarMonthView: View {
     @State private var editSummary: String = ""
     @State private var editManDays: String = ""
     @State private var hoveredEntryId: String?
+    @State private var cachedGantt: [GanttProject] = []  // T6: 缓存，避免每次 body 重算
     var onProjectTap: (String) -> Void
 
     private let weekdays = ["日", "一", "二", "三", "四", "五", "六"]
@@ -64,6 +65,10 @@ struct CalendarMonthView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.easeInOut(duration: 0.2), value: selectedDate)
+        .onAppear { cachedGantt = ganttProjects() }
+        .onChange(of: store.projects) { _, _ in cachedGantt = ganttProjects() }
+        .onChange(of: year) { _, _ in cachedGantt = ganttProjects() }
+        .onChange(of: month) { _, _ in cachedGantt = ganttProjects() }
     }
 
     // MARK: - Month Header
@@ -139,7 +144,7 @@ struct CalendarMonthView: View {
             Divider().opacity(0.5)
 
             // 日期网格
-            let activeProjects = ganttProjects()
+            let activeProjects = cachedGantt
             VStack(spacing: 0) {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { weekIdx, week in
                     weekRow(week: week, activeProjects: activeProjects)

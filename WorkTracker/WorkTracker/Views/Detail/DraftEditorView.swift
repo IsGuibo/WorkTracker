@@ -22,8 +22,9 @@ struct DraftEditorView: View {
                 }
             }
             .onAppear { loadDraft() }
-            .onChange(of: projectId) { loadDraft() }
-            .onChange(of: content) { scheduleSave() }
+            .onDisappear { saveTimer?.invalidate(); saveTimer = nil }  // T3: 防 Timer 泄漏
+            .onChange(of: projectId) { _, _ in loadDraft() }   // T8: 新版 API
+            .onChange(of: content) { _, _ in scheduleSave() }  // T8: 新版 API
     }
 
     private func loadDraft() {

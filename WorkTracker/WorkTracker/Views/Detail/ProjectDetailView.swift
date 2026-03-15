@@ -322,6 +322,7 @@ struct ProjectDetailView: View {
 
     private func changeStatus(_ newStatus: ProjectStatus) {
         updateField {
+            guard newStatus != $0.status else { return }  // T9: 防重复追加
             $0.status = newStatus
             $0.statusHistory.append(StatusChange(status: newStatus, date: DateHelpers.today()))
             if newStatus == .done {
@@ -341,7 +342,7 @@ struct ProjectDetailView: View {
         guard !name.isEmpty else { return }
         var updated = project
         let task = ProjectTask(
-            id: "t\(Int(Date().timeIntervalSince1970))",
+            id: store.nextTaskId(),
             name: name, status: .notStarted, currentStatus: ""
         )
         updated.tasks.append(task)

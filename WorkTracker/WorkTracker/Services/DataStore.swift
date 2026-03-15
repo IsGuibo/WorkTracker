@@ -10,7 +10,7 @@ final class DataStore: ObservableObject {
 
     let directory: URL
     private var fileWatcher: FileWatcher?
-    private var ignoreNextReload = false
+    private var pendingIgnoreCount = 0  // T2: 计数器替换布尔，防竞态
 
     init(directory: URL, enableFileWatcher: Bool = true) {
         self.directory = directory
@@ -18,8 +18,8 @@ final class DataStore: ObservableObject {
             fileWatcher = FileWatcher(directory: directory) { [weak self] in
                 Task { @MainActor in
                     guard let self else { return }
-                    if self.ignoreNextReload {
-                        self.ignoreNextReload = false
+                    if self.pendingIgnoreCount > 0 {  // T2
+                        self.pendingIgnoreCount -= 1
                         return
                     }
                     self.loadAll()
@@ -27,6 +27,26 @@ final class DataStore: ObservableObject {
             }
         }
     }
+
+    // MARK: - T1: ID Helpers
+
+    func nextProjectId() -> String {
+        let maxNum = projects.compactMap { p -> Int? in
+            guard p.id.hasPrefix("p"), let n = Int(p.id.dropFirst()) else { return nil }
+            return n
+        }.max() ?? 0
+        return "p\(maxNum + 1)"
+    }
+
+    func nextTaskId() -> String {
+        let maxNum = projects.flatMap(\.tasks).compactMap { t -> Int? in
+            guard t.id.hasPrefix("t"), let n = Int(t.id.dropFirst()) else { return nil }
+            return n
+        }.max() ?? 0
+        return "t\(maxNum + 1)"
+    }
+
+    // MARK: - Load
 
     func loadAll() {
         ensureDirectoryStructure()
@@ -86,13 +106,25 @@ final class DataStore: ObservableObject {
         return try? String(contentsOf: url, encoding: .utf8)
     }
 
+    private func reportError(_ message: String) {
+        hasError = true
+        errorMessage = message
+    }
+
+    // MARK: - Save (T4: 写入后台, T5: 错误显示到 UI)
+
     func saveDraft(projectId: String, content: String) {
         let dir = directory.appendingPathComponent("drafts")
-        try? FileManager.default.createDirectory(
-            at: dir, withIntermediateDirectories: true)
-        try? content.write(
-            to: dir.appendingPathComponent("\(projectId).md"),
-            atomically: true, encoding: .utf8)
+        let url = dir.appendingPathComponent("\(projectId).md")
+        Task.detached { [self] in
+            do {
+                try FileManager.default.createDirectory(
+                    at: dir, withIntermediateDirectories: true)
+                try content.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                await self.reportError("草稿保存失败: \(error.localizedDescription)")
+            }
+        }
     }
 
     func saveProjects() {
@@ -100,8 +132,15 @@ final class DataStore: ObservableObject {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(
             ProjectContainer(projects: projects)) else { return }
-        ignoreNextReload = true
-        try? data.write(to: directory.appendingPathComponent("projects.json"))
+        pendingIgnoreCount += 1  // T2
+        let url = directory.appendingPathComponent("projects.json")
+        Task.detached { [self] in
+            do {
+                try data.write(to: url)
+            } catch {
+                await self.reportError("保存失败: \(error.localizedDescription)")
+            }
+        }
     }
 
     func logsForDate(_ date: String) -> [LogEntry] {
@@ -142,8 +181,15 @@ final class DataStore: ObservableObject {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(
             DailyLogContainer(logs: dailyLogs)) else { return }
-        ignoreNextReload = true
-        try? data.write(to: directory.appendingPathComponent("daily-logs.json"))
+        pendingIgnoreCount += 1  // T2
+        let url = directory.appendingPathComponent("daily-logs.json")
+        Task.detached { [self] in
+            do {
+                try data.write(to: url)
+            } catch {
+                await self.reportError("保存失败: \(error.localizedDescription)")
+            }
+        }
     }
 
     func addLogEntry(date: String, entry: LogEntry) {

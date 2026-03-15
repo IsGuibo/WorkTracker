@@ -1,19 +1,19 @@
 import Foundation
 
-struct StatusChange: Codable, Identifiable {
+struct StatusChange: Codable, Identifiable, Equatable {
     var id: String { "\(status.rawValue)-\(date)" }
     let status: ProjectStatus
     let date: String
 }
 
-struct ProjectTask: Codable, Identifiable {
+struct ProjectTask: Codable, Identifiable, Equatable {
     let id: String
     var name: String
     var status: ProjectStatus
     var currentStatus: String
 }
 
-struct Project: Codable, Identifiable {
+struct Project: Codable, Identifiable, Equatable {
     let id: String
     var name: String
     var status: ProjectStatus

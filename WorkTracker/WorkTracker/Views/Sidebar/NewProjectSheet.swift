@@ -3,6 +3,7 @@ import SwiftUI
 struct NewProjectSheet: View {
     var onCreate: (Project) -> Void
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var store: DataStore
     @State private var name = ""
     @State private var priority: Priority = .medium
     @State private var description = ""
@@ -46,7 +47,7 @@ struct NewProjectSheet: View {
 
     private func createProject() {
         let today = DateHelpers.today()
-        let id = "p\(Int(Date().timeIntervalSince1970))"
+        let id = store.nextProjectId()
         let tagList = tags.split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
