@@ -12,6 +12,8 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(selection: $selection)
+                // P1-C: HIG 推荐侧边栏宽度 180-320pt
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } detail: {
             VStack(spacing: 0) {
                 if store.hasError {

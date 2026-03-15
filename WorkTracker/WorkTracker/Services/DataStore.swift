@@ -7,8 +7,11 @@ final class DataStore: ObservableObject {
     @Published var dailyLogs: [DailyLog] = []
     @Published var hasError = false
     @Published var errorMessage = ""
+    @Published private(set) var canUndo = false
+    @Published private(set) var canRedo = false
 
     let directory: URL
+    let undoManager = UndoManager()
     private var fileWatcher: FileWatcher?
     private var pendingIgnoreCount = 0  // T2: 计数器替换布尔，防竞态
 
@@ -26,6 +29,13 @@ final class DataStore: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - Undo State
+
+    private func syncUndoState() {
+        canUndo = undoManager.canUndo
+        canRedo = undoManager.canRedo
     }
 
     // MARK: - T1: ID Helpers
@@ -138,6 +148,8 @@ final class DataStore: ObservableObject {
             do {
                 try data.write(to: url)
             } catch {
+                // 写入失败时归还计数，否则后续外部变更将被永久忽略
+                await MainActor.run { self.pendingIgnoreCount -= 1 }
                 await self.reportError("保存失败: \(error.localizedDescription)")
             }
         }
@@ -158,20 +170,37 @@ final class DataStore: ObservableObject {
     // MARK: - 项目操作
 
     func addProject(_ project: Project) {
+        let id = project.id
+        undoManager.registerUndo(withTarget: self) { target in
+            target.deleteProject(id: id)
+        }
+        undoManager.setActionName("新建项目")
         projects.append(project)
         saveProjects()
+        syncUndoState()
     }
 
     func deleteProject(id: String) {
+        guard let project = projects.first(where: { $0.id == id }) else { return }
+        undoManager.registerUndo(withTarget: self) { target in
+            target.addProject(project)
+        }
+        undoManager.setActionName("删除项目")
         projects.removeAll { $0.id == id }
         saveProjects()
+        syncUndoState()
     }
 
     func updateProject(_ project: Project) {
-        if let idx = projects.firstIndex(where: { $0.id == project.id }) {
-            projects[idx] = project
-            saveProjects()
+        guard let idx = projects.firstIndex(where: { $0.id == project.id }) else { return }
+        let old = projects[idx]
+        undoManager.registerUndo(withTarget: self) { target in
+            target.updateProject(old)
         }
+        undoManager.setActionName("修改项目")
+        projects[idx] = project
+        saveProjects()
+        syncUndoState()
     }
 
     // MARK: - 日志操作
@@ -187,35 +216,52 @@ final class DataStore: ObservableObject {
             do {
                 try data.write(to: url)
             } catch {
+                await MainActor.run { self.pendingIgnoreCount -= 1 }
                 await self.reportError("保存失败: \(error.localizedDescription)")
             }
         }
     }
 
     func addLogEntry(date: String, entry: LogEntry) {
+        undoManager.registerUndo(withTarget: self) { target in
+            target.deleteLogEntry(date: date, entryId: entry.id)
+        }
+        undoManager.setActionName("添加工作记录")
         if let idx = dailyLogs.firstIndex(where: { $0.date == date }) {
             dailyLogs[idx].entries.append(entry)
         } else {
             dailyLogs.append(DailyLog(date: date, entries: [entry]))
         }
         saveDailyLogs()
+        syncUndoState()
     }
 
     func deleteLogEntry(date: String, entryId: String) {
-        if let idx = dailyLogs.firstIndex(where: { $0.date == date }) {
-            dailyLogs[idx].entries.removeAll { $0.id == entryId }
-            if dailyLogs[idx].entries.isEmpty {
-                dailyLogs.remove(at: idx)
-            }
-            saveDailyLogs()
+        guard let dIdx = dailyLogs.firstIndex(where: { $0.date == date }),
+              let entry = dailyLogs[dIdx].entries.first(where: { $0.id == entryId }) else { return }
+        undoManager.registerUndo(withTarget: self) { target in
+            target.addLogEntry(date: date, entry: entry)
         }
+        undoManager.setActionName("删除工作记录")
+        dailyLogs[dIdx].entries.removeAll { $0.id == entryId }
+        if dailyLogs[dIdx].entries.isEmpty {
+            dailyLogs.remove(at: dIdx)
+        }
+        saveDailyLogs()
+        syncUndoState()
     }
 
     func updateLogEntry(date: String, entry: LogEntry) {
         if let dIdx = dailyLogs.firstIndex(where: { $0.date == date }),
            let eIdx = dailyLogs[dIdx].entries.firstIndex(where: { $0.id == entry.id }) {
+            let old = dailyLogs[dIdx].entries[eIdx]
+            undoManager.registerUndo(withTarget: self) { target in
+                target.updateLogEntry(date: date, entry: old)
+            }
+            undoManager.setActionName("修改工作记录")
             dailyLogs[dIdx].entries[eIdx] = entry
             saveDailyLogs()
+            syncUndoState()
         }
     }
 }

@@ -6,6 +6,9 @@ struct SidebarView: View {
     @State private var statusFilter: ProjectStatus?
     @State private var priorityFilter: Priority?
     @State private var showNewProject = false
+    // P2-A: 删除确认对话框所需状态
+    @State private var projectToDelete: String?
+    @State private var showDeleteConfirmation = false
 
     var filteredProjects: [Project] {
         store.projects.filter { p in
@@ -25,16 +28,17 @@ struct SidebarView: View {
                     ProjectRowView(project: project)
                         .tag(SidebarItem.project(project.id))
                         .contextMenu {
+                            // P2-A: 不直接删除，先弹确认对话框
                             Button("删除项目", role: .destructive) {
-                                store.deleteProject(id: project.id)
-                                if selection == .project(project.id) {
-                                    selection = .calendar
-                                }
+                                projectToDelete = project.id
+                                showDeleteConfirmation = true
                             }
                         }
                 }
             }
         }
+        // P1-C: source list 样式，启用 vibrancy 磨砂背景
+        .listStyle(.sidebar)
         .safeAreaInset(edge: .top) {
             HStack {
                 Menu("状态") {
@@ -64,6 +68,18 @@ struct SidebarView: View {
                 store.addProject(project)
                 selection = .project(project.id)
             }
+        }
+        // P2-A: 删除确认 alert，presenting 保证关闭前 id 不丢失
+        .alert("删除项目", isPresented: $showDeleteConfirmation, presenting: projectToDelete) { id in
+            Button("删除", role: .destructive) {
+                store.deleteProject(id: id)
+                if selection == .project(id) {
+                    selection = .calendar
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: { _ in
+            Text("此操作可通过 ⌘Z 撤销。")
         }
         .onReceive(NotificationCenter.default.publisher(for: .newProjectCommand)) { _ in
             showNewProject = true

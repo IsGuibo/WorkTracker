@@ -4,7 +4,9 @@ struct ProjectDetailView: View {
     let project: Project
     @EnvironmentObject var store: DataStore
     @State private var newTaskName = ""
+    @State private var isAddingTask = false
     @FocusState private var isTaskInputFocused: Bool
+    @FocusState private var focusedTaskId: String?   // Bug 1: 重命名 TextField 的焦点管理
     @State private var hoveredTaskId: String?
     @State private var editingTaskId: String?
     @State private var editingTaskName: String = ""
@@ -22,8 +24,11 @@ struct ProjectDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+        // P3-C: contentShape 确保点击区域覆盖整个背景，避免与子视图手势竞争
+        .contentShape(Rectangle())
         .onTapGesture {
             commitTaskEdit()
+            cancelAddTask()
             NSApp.keyWindow?.makeFirstResponder(nil)
         }
     }
@@ -194,28 +199,38 @@ struct ProjectDetailView: View {
             }
 
             if !project.tasks.isEmpty {
-                Divider().padding(.leading, 24)
+                Divider().padding(.leading, 56)  // Bug 2: 与任务间分隔线保持一致
             }
 
-            // 添加任务输入行
-            HStack(spacing: 10) {
-                Image(systemName: "plus.circle")
-                    .foregroundStyle(isTaskInputFocused ? Color.accentColor : Color.secondary.opacity(0.5))
-                    .font(.body)
-                TextField("添加任务…", text: $newTaskName)
-                    .textFieldStyle(.plain)
-                    .focused($isTaskInputFocused)
-                    .onSubmit { submitTask() }
-                if !newTaskName.isEmpty {
-                    Button("添加") { submitTask() }
-                        .font(.caption.weight(.medium))
-                        .buttonStyle(.plain)
+            // 添加子任务：点击按钮后内联展开输入行
+            if isAddingTask {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus.circle.fill")
                         .foregroundStyle(Color.accentColor)
+                        .font(.body)
+                    TextField("任务名称", text: $newTaskName)
+                        .textFieldStyle(.plain)
+                        .focused($isTaskInputFocused)
+                        .onSubmit { submitTask() }
+                        .onExitCommand { cancelAddTask() }
                 }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 9)
+                .padding(.bottom, 5)
+            } else {
+                Button {
+                    isAddingTask = true
+                    isTaskInputFocused = true
+                } label: {
+                    Label("添加子任务", systemImage: "plus")
+                        .foregroundStyle(Color.secondary)
+                        .font(.callout)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 9)
+                .padding(.bottom, 5)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 9)
-            .padding(.bottom, 5)
         }
     }
 
@@ -231,6 +246,19 @@ struct ProjectDetailView: View {
             if editingTaskId == task.id {
                 TextField("任务名称", text: $editingTaskName)
                     .textFieldStyle(.plain)
+                    .focused($focusedTaskId, equals: task.id)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Color(nsColor: .textBackgroundColor))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .strokeBorder(Color.accentColor.opacity(0.5), lineWidth: 1)
+                            )
+                    )
+                    // TextField 进入视图树后立即聚焦，比 DispatchQueue 更可靠
+                    .onAppear { focusedTaskId = task.id }
                     .onSubmit { commitTaskEdit() }
                     .onExitCommand { editingTaskId = nil }
             } else {
@@ -241,6 +269,7 @@ struct ProjectDetailView: View {
                     .onTapGesture(count: 2) {
                         editingTaskId = task.id
                         editingTaskName = task.name
+                        // 焦点由 TextField.onAppear 负责设置
                     }
             }
 
@@ -255,18 +284,6 @@ struct ProjectDetailView: View {
                     .clipShape(Capsule())
             }
 
-            if hoveredTaskId == task.id && editingTaskId != task.id {
-                Button(action: { deleteTask(task.id) }) {
-                    Image(systemName: "xmark")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 18, height: 18)
-                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
-                }
-                .buttonStyle(.plain)
-                .help("删除任务")
-                .transition(.opacity)
-            }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 8)
@@ -339,7 +356,10 @@ struct ProjectDetailView: View {
 
     private func submitTask() {
         let name = newTaskName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
+        if name.isEmpty {
+            cancelAddTask()
+            return
+        }
         var updated = project
         let task = ProjectTask(
             id: store.nextTaskId(),
@@ -348,7 +368,13 @@ struct ProjectDetailView: View {
         updated.tasks.append(task)
         store.updateProject(updated)
         newTaskName = ""
+        // 提交后保持输入行展开，便于连续录入
         isTaskInputFocused = true
+    }
+
+    private func cancelAddTask() {
+        newTaskName = ""
+        isAddingTask = false
     }
 
     private func deleteTask(_ taskId: String) {

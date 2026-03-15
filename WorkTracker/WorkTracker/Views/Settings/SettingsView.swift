@@ -1,7 +1,10 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @AppStorage("dataDirectoryPath") private var dataDirectoryPath: String = ""
+    // P2-B: 替换 NSOpenPanel.runModal() 的声明式状态
+    @State private var showingFolderPicker = false
 
     var body: some View {
         Form {
@@ -13,19 +16,23 @@ struct SettingsView: View {
                         .truncationMode(.middle)
                     Spacer()
                     Button("选择文件夹") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseFiles = false
-                        panel.canChooseDirectories = true
-                        panel.allowsMultipleSelection = false
-                        panel.message = "选择 WorkTracker 数据目录"
-                        if panel.runModal() == .OK, let url = panel.url {
-                            dataDirectoryPath = url.path
-                        }
+                        showingFolderPicker = true
                     }
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 450, height: 150)
+        // P3-D: 只固定宽度，高度随内容自适应，避免增加设置项时截断
+        .frame(width: 450)
+        .fixedSize(horizontal: true, vertical: false)
+        // P2-B: SwiftUI 原生文件夹选择器，非阻塞，替代 NSOpenPanel.runModal()
+        .fileImporter(
+            isPresented: $showingFolderPicker,
+            allowedContentTypes: [UTType.folder]
+        ) { result in
+            if case .success(let url) = result {
+                dataDirectoryPath = url.path
+            }
+        }
     }
 }
