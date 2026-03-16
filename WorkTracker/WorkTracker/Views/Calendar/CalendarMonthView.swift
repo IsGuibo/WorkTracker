@@ -63,6 +63,7 @@ struct CalendarMonthView: View {
             }
             .padding(.bottom, 20)
         }
+        .scrollIndicators(.never)
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.easeInOut(duration: 0.2), value: selectedDate)
         .onAppear { cachedGantt = ganttProjects() }
@@ -523,7 +524,10 @@ struct CalendarMonthView: View {
         for project in store.projects {
             guard !project.startDate.isEmpty else { continue }
 
-            let history = project.statusHistory.sorted { $0.date < $1.date }
+            // 过滤掉 startDate 之前的历史记录，避免测试数据或噪音数据导致甘特条提前显示
+            let history = project.statusHistory
+                .filter { !$0.date.isEmpty && $0.date >= project.startDate }
+                .sorted { $0.date < $1.date }
             var daySegments: [(Int, Int)] = []
 
             if history.isEmpty || project.status == .notStarted {
