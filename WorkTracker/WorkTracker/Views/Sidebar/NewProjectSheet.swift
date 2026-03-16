@@ -11,9 +11,13 @@ struct NewProjectSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("新建项目")
-                .font(.headline)
-                .padding(.vertical, 16)
+            HStack {
+                Text("新建项目")
+                    .font(.headline)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
 
             Divider()
 

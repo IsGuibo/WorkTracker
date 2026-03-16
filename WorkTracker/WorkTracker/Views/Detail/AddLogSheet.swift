@@ -33,7 +33,16 @@ struct WeeklyLogSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            sheetHeader
+            // 标题
+            HStack {
+                Text("记录周工时")
+                    .font(.headline)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
             Divider()
             weekSelector
             Divider()
@@ -58,27 +67,22 @@ struct WeeklyLogSheet: View {
                 }
                 .padding(12)
             }
-        }
-        .frame(width: 540, height: 480)
-    }
 
-    // MARK: - Header
-
-    private var sheetHeader: some View {
-        HStack {
-            Button("取消") { dismiss() }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text("记录周工时")
-                .font(.headline)
-            Spacer()
-            Button("保存") { save() }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
-                .disabled(!canSave)
+            // 底部操作按钮（macOS 风格：右对齐，Cancel 在左，Save 在右）
+            Divider()
+            HStack {
+                Spacer()
+                Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("保存") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSave)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
         }
-        .padding()
+        .frame(width: 540, height: 500)
     }
 
     // MARK: - Week Selector
