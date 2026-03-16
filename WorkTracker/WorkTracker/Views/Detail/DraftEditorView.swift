@@ -12,16 +12,6 @@ struct DraftEditorView: View {
             .font(.system(.body, design: .monospaced))
             .scrollContentBackground(.hidden)
             .padding(8)
-            .overlay(alignment: .topLeading) {
-                if content.isEmpty {
-                    Text("在此撰写草稿…")
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 12)
-                        .allowsHitTesting(false)
-                }
-            }
             .onAppear { loadDraft() }
             .onDisappear {
                 // Task.cancel() 自动跳过待执行的保存，无需手动 nil 判断

@@ -11,21 +11,9 @@ struct NewProjectSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏
-            HStack {
-                Button("取消") { dismiss() }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("新建项目")
-                    .font(.headline)
-                Spacer()
-                Button("创建") { createProject() }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.accentColor)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-            .padding()
+            Text("新建项目")
+                .font(.headline)
+                .padding(.vertical, 16)
 
             Divider()
 
@@ -41,6 +29,20 @@ struct NewProjectSheet: View {
                 TextField("标签（逗号分隔）", text: $tags)
             }
             .formStyle(.grouped)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("创建") { createProject() }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
         .frame(width: 400, height: 340)
     }

@@ -469,7 +469,7 @@ struct InlineTagsEditor: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                 if tags.isEmpty {
-                    Text("添加标签…")
+                    Text("标签")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 } else {
@@ -487,6 +487,9 @@ struct InlineTagsEditor: View {
                 draft = tags.joined(separator: ", ")
                 isEditing = true
                 focused = true
+            }
+            .onHover { hovering in
+                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
             }
         }
     }
@@ -524,9 +527,8 @@ struct InlineDatePicker: View {
                 .foregroundStyle(.secondary)
 
             if hasDate {
-                // 使用系统原生 .compact 样式：带边框按钮 + 点击自动弹出日历 popover
                 DatePicker("", selection: $pickerDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
+                    .datePickerStyle(.field)
                     .labelsHidden()
                     .controlSize(.small)
                     .onChange(of: pickerDate) { _, newVal in

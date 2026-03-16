@@ -41,20 +41,28 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .safeAreaInset(edge: .top) {
             HStack {
-                Menu("状态") {
+                Menu {
                     Button("全部") { statusFilter = nil }
                     Divider()
                     ForEach(ProjectStatus.allCases, id: \.self) { s in
                         Button(s.label) { statusFilter = s }
                     }
+                } label: {
+                    filterChip(statusFilter?.label ?? "状态", active: statusFilter != nil)
                 }
-                Menu("优先级") {
+                .fixedSize()
+
+                Menu {
                     Button("全部") { priorityFilter = nil }
                     Divider()
                     ForEach(Priority.allCases, id: \.self) { p in
                         Button(p.label) { priorityFilter = p }
                     }
+                } label: {
+                    filterChip(priorityFilter?.label ?? "优先级", active: priorityFilter != nil)
                 }
+                .fixedSize()
+
                 Spacer()
                 Button(action: { showNewProject = true }) {
                     Image(systemName: "plus")
@@ -84,5 +92,11 @@ struct SidebarView: View {
         .onReceive(NotificationCenter.default.publisher(for: .newProjectCommand)) { _ in
             showNewProject = true
         }
+    }
+
+    private func filterChip(_ title: String, active: Bool) -> some View {
+        Text(title)
+            .font(active ? .callout.weight(.medium) : .callout)
+            .foregroundStyle(active ? Color.accentColor : Color.primary)
     }
 }

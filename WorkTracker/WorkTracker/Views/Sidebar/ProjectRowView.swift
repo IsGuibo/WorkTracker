@@ -24,6 +24,7 @@ struct ProjectRowView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .padding(.leading, 16)
         }
         .padding(.vertical, 4)
     }
