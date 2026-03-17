@@ -52,7 +52,7 @@
 ### Build from Source / 从源码编译
 
 ```bash
-git clone https://github.com/your-username/WorkTracker.git
+git clone https://github.com/IsGuibo/WorkTracker.git
 cd WorkTracker/WorkTracker
 swift build -c release
 swift run WorkTracker
@@ -125,4 +125,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT © 2026 [黄贵波 (Guibo Huang)](https://github.com/your-username)
+MIT © 2026 [黄贵波 (Guibo Huang)](https://github.com/IsGuibo)
