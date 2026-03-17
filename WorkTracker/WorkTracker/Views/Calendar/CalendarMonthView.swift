@@ -506,13 +506,14 @@ struct CalendarMonthView: View {
     }
 
     struct WeekBar: Identifiable {
-        var id: String { "\(projectId)-\(startCol)-\(endCol)" }
+        var id: String { "\(projectId)-\(startDay)" }
         let projectId: String
         let name: String
         let isDone: Bool
         let startCol: Int
         let endCol: Int
         let lane: Int
+        let startDay: Int  // 实际日期数字，保证跨周唯一
     }
 
     private func ganttProjects() -> [GanttProject] {
@@ -575,10 +576,13 @@ struct CalendarMonthView: View {
             }
 
             guard !daySegments.isEmpty else { continue }
+            // 去重：脏数据（重复状态切换）可能生成完全相同的段，导致 ForEach id 碰撞
+            var seen = Set<String>()
+            let uniqueSegments = daySegments.filter { seen.insert("\($0.0)-\($0.1)").inserted }
             result.append(GanttProject(
                 id: project.id, name: project.name,
                 isDone: project.status == .done,
-                segments: daySegments
+                segments: uniqueSegments
             ))
         }
         return result
@@ -594,13 +598,13 @@ struct CalendarMonthView: View {
 
         for gp in activeProjects {
             // 收集该项目在本周有重叠的所有段
-            let overlapping = gp.segments.compactMap { seg -> (startCol: Int, endCol: Int)? in
+            let overlapping = gp.segments.compactMap { seg -> (startCol: Int, endCol: Int, startDay: Int)? in
                 let overlapStart = max(seg.startDay, weekStart)
                 let overlapEnd = min(seg.endDay, weekEnd)
                 guard overlapStart <= overlapEnd else { return nil }
                 let startCol = week.firstIndex(where: { $0 == overlapStart }) ?? 0
                 let endCol = week.firstIndex(where: { $0 == overlapEnd }) ?? 6
-                return (startCol, endCol)
+                return (startCol, endCol, overlapStart)
             }
             guard !overlapping.isEmpty else { continue }
 
@@ -616,7 +620,8 @@ struct CalendarMonthView: View {
             for seg in overlapping {
                 bars.append(WeekBar(
                     projectId: gp.id, name: gp.name, isDone: gp.isDone,
-                    startCol: seg.startCol, endCol: seg.endCol, lane: lane
+                    startCol: seg.startCol, endCol: seg.endCol, lane: lane,
+                    startDay: seg.startDay
                 ))
             }
         }

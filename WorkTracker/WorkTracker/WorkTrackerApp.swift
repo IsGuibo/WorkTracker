@@ -44,15 +44,6 @@ struct WorkTrackerApp: App {
         }
         .defaultSize(width: 1100, height: 700)
         .commands {
-            // P0: Cmd+Z / Cmd+Shift+Z 撤销/重做，连接 DataStore.undoManager
-            CommandGroup(replacing: .undoRedo) {
-                Button("撤销") { dataStore.undoManager.undo() }
-                    .keyboardShortcut("z", modifiers: .command)
-                    .disabled(!dataStore.canUndo)
-                Button("重做") { dataStore.undoManager.redo() }
-                    .keyboardShortcut("z", modifiers: [.command, .shift])
-                    .disabled(!dataStore.canRedo)
-            }
             CommandGroup(replacing: .newItem) {
                 Button("新建项目") {
                     NotificationCenter.default.post(
