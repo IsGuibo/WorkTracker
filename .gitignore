@@ -1,0 +1,7 @@
+# macOS
+.DS_Store
+
+# Claude Code 内部文件
+.claude/
+CLAUDE.md
+docs/superpowers/
