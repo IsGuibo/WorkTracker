@@ -12,9 +12,9 @@
 
 ## Screenshots / 截图
 
-> Coming soon. Screenshots will be added to `docs/screenshots/`.
->
-> 截图待补充，将存放于 `docs/screenshots/` 目录。
+| 甘特式日历 / Gantt Calendar | 项目详情 / Project Detail |
+|:---:|:---:|
+| ![甘特式日历](docs/screenshots/SCR-20260317-ljmx.png) | ![项目详情](docs/screenshots/SCR-20260317-ljrc.png) |
 
 ---
 
