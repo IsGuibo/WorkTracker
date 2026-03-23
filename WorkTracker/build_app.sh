@@ -5,7 +5,7 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 DISPLAY="工作追踪"
 BUNDLE_ID="com.worktracker.local"
-VERSION="1.0"
+VERSION="1.0.1"
 APP="$DIR/$DISPLAY.app"
 
 echo "▶ 编译 release 版本…"
