@@ -5,17 +5,26 @@ struct SidebarView: View {
     @Binding var selection: SidebarItem?
     @State private var statusFilter: ProjectStatus?
     @State private var priorityFilter: Priority?
+    @State private var sortOption: ProjectSortOption = .status
     @State private var showNewProject = false
     // P2-A: 删除确认对话框所需状态
     @State private var projectToDelete: String?
     @State private var showDeleteConfirmation = false
 
     var filteredProjects: [Project] {
-        store.projects.filter { p in
-            if let s = statusFilter, p.status != s { return false }
-            if let pr = priorityFilter, p.priority != pr { return false }
-            return true
-        }
+        SidebarProjectQuery.projects(
+            from: store.projects,
+            statusFilter: statusFilter,
+            priorityFilter: priorityFilter,
+            sortOption: sortOption
+        )
+    }
+
+    var hasActiveFilters: Bool {
+        SidebarProjectQuery.hasActiveFilters(
+            statusFilter: statusFilter,
+            priorityFilter: priorityFilter
+        )
     }
 
     var body: some View {
@@ -42,25 +51,66 @@ struct SidebarView: View {
         .safeAreaInset(edge: .top) {
             HStack {
                 Menu {
-                    Button("全部") { statusFilter = nil }
-                    Divider()
-                    ForEach(ProjectStatus.allCases, id: \.self) { s in
-                        Button(s.label) { statusFilter = s }
+                    ForEach(ProjectSortOption.allCases, id: \.self) { option in
+                        Button { sortOption = option } label: {
+                            menuItemLabel(option.label, selected: sortOption == option)
+                        }
                     }
                 } label: {
-                    filterChip(statusFilter?.label ?? "状态", active: statusFilter != nil)
+                    toolbarButtonLabel(
+                        systemImage: SidebarToolbarPresentation.sortButtonSystemImage,
+                        title: SidebarToolbarPresentation.sortButtonTitle
+                    )
                 }
+                .help(SidebarToolbarPresentation.sortButtonHelp(sortOption: sortOption))
                 .fixedSize()
 
                 Menu {
-                    Button("全部") { priorityFilter = nil }
-                    Divider()
-                    ForEach(Priority.allCases, id: \.self) { p in
-                        Button(p.label) { priorityFilter = p }
+                    Menu("状态筛选") {
+                        Button { statusFilter = nil } label: {
+                            menuItemLabel("全部", selected: statusFilter == nil)
+                        }
+                        Divider()
+                        ForEach(ProjectStatus.allCases, id: \.self) { status in
+                            Button { statusFilter = status } label: {
+                                menuItemLabel(status.label, selected: statusFilter == status)
+                            }
+                        }
+                    }
+
+                    Menu("优先级筛选") {
+                        Button { priorityFilter = nil } label: {
+                            menuItemLabel("全部", selected: priorityFilter == nil)
+                        }
+                        Divider()
+                        ForEach(Priority.allCases.reversed(), id: \.self) { priority in
+                            Button { priorityFilter = priority } label: {
+                                menuItemLabel(priority.label, selected: priorityFilter == priority)
+                            }
+                        }
+                    }
+
+                    if hasActiveFilters {
+                        Divider()
+                        Button("清除筛选") {
+                            statusFilter = nil
+                            priorityFilter = nil
+                        }
                     }
                 } label: {
-                    filterChip(priorityFilter?.label ?? "优先级", active: priorityFilter != nil)
+                    toolbarButtonLabel(
+                        systemImage: SidebarToolbarPresentation.filterButtonSystemImage(
+                            hasActiveFilters: hasActiveFilters
+                        ),
+                        title: SidebarToolbarPresentation.filterButtonTitle
+                    )
                 }
+                .help(
+                    SidebarToolbarPresentation.filterButtonHelp(
+                        statusFilter: statusFilter,
+                        priorityFilter: priorityFilter
+                    )
+                )
                 .fixedSize()
 
                 Spacer()
@@ -94,9 +144,24 @@ struct SidebarView: View {
         }
     }
 
-    private func filterChip(_ title: String, active: Bool) -> some View {
-        Text(title)
-            .font(active ? .callout.weight(.medium) : .callout)
-            .foregroundStyle(active ? Color.accentColor : Color.primary)
+    private func toolbarButtonLabel(systemImage: String, title: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+            Text(title)
+        }
+        .font(.callout)
+        .foregroundStyle(Color.primary)
+    }
+
+    private func menuItemLabel(_ title: String, selected: Bool) -> some View {
+        HStack {
+            if selected {
+                Image(systemName: "checkmark")
+            } else {
+                Image(systemName: "checkmark")
+                    .hidden()
+            }
+            Text(title)
+        }
     }
 }

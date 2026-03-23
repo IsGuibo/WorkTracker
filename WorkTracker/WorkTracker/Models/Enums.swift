@@ -23,6 +23,15 @@ enum ProjectStatus: String, Codable, CaseIterable {
             self = ProjectStatus(rawValue: raw) ?? .notStarted
         }
     }
+
+    var sidebarSortOrder: Int {
+        switch self {
+        case .inProgress: 0
+        case .notStarted: 1
+        case .paused: 2
+        case .done: 3
+        }
+    }
 }
 
 enum Priority: String, Codable, CaseIterable, Comparable {
@@ -45,5 +54,32 @@ enum Priority: String, Codable, CaseIterable, Comparable {
 
     static func < (lhs: Priority, rhs: Priority) -> Bool {
         lhs.sortOrder < rhs.sortOrder
+    }
+
+    var sidebarSortOrderDescending: Int {
+        switch self {
+        case .urgent: 0
+        case .high: 1
+        case .medium: 2
+        case .low: 3
+        }
+    }
+}
+
+enum ProjectSortOption: String, CaseIterable {
+    case status
+    case priority
+    case startDate
+    case dueDate
+    case name
+
+    var label: String {
+        switch self {
+        case .status: "状态"
+        case .priority: "优先级"
+        case .startDate: "开始日期"
+        case .dueDate: "截止日期"
+        case .name: "项目名称"
+        }
     }
 }
