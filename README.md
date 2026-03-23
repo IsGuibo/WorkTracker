@@ -49,6 +49,15 @@
 
 ## Installation / 安装
 
+### Download Latest Release / 下载最新版本
+
+- Latest version / 最新版本：[`v1.0.1`](https://github.com/IsGuibo/WorkTracker/releases/tag/v1.0.1)
+- macOS package / macOS 安装包：[`WorkTracker-v1.0.1-macOS.zip`](https://github.com/IsGuibo/WorkTracker/releases/download/v1.0.1/WorkTracker-v1.0.1-macOS.zip)
+
+Download the ZIP file, unzip it, and drag `工作追踪.app` into `/Applications`.
+
+下载 ZIP 文件后解压，将 `工作追踪.app` 拖入 `/Applications` 即可。
+
 ### Build from Source / 从源码编译
 
 ```bash
@@ -68,6 +77,8 @@ bash build_app.sh
 This creates `工作追踪.app` in the `WorkTracker/WorkTracker/` directory.
 
 打包完成后，`WorkTracker/WorkTracker/` 目录下会生成 `工作追踪.app`，可直接拖入 `/Applications`。
+
+`build_app.sh` 当前会生成版本号为 `1.0.1` 的应用包。
 
 ---
 
