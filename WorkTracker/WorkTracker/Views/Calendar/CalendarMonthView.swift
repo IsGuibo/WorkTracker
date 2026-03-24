@@ -506,7 +506,7 @@ struct CalendarMonthView: View {
     }
 
     struct WeekBar: Identifiable {
-        var id: String { "\(projectId)-\(startDay)" }
+        var id: String { "\(projectId)-\(startDay)-\(endCol)" }
         let projectId: String
         let name: String
         let isDone: Bool
@@ -514,6 +514,28 @@ struct CalendarMonthView: View {
         let endCol: Int
         let lane: Int
         let startDay: Int  // 实际日期数字，保证跨周唯一
+    }
+
+    static func mergeOverlappingSegments(_ segments: [(startDay: Int, endDay: Int)]) -> [(startDay: Int, endDay: Int)] {
+        guard !segments.isEmpty else { return [] }
+
+        let sortedSegments = segments.sorted {
+            if $0.startDay == $1.startDay {
+                return $0.endDay < $1.endDay
+            }
+            return $0.startDay < $1.startDay
+        }
+
+        var merged: [(startDay: Int, endDay: Int)] = [sortedSegments[0]]
+        for segment in sortedSegments.dropFirst() {
+            let lastIndex = merged.count - 1
+            if segment.startDay <= merged[lastIndex].endDay {
+                merged[lastIndex].endDay = max(merged[lastIndex].endDay, segment.endDay)
+            } else {
+                merged.append(segment)
+            }
+        }
+        return merged
     }
 
     private func ganttProjects() -> [GanttProject] {
@@ -579,10 +601,13 @@ struct CalendarMonthView: View {
             // 去重：脏数据（重复状态切换）可能生成完全相同的段，导致 ForEach id 碰撞
             var seen = Set<String>()
             let uniqueSegments = daySegments.filter { seen.insert("\($0.0)-\($0.1)").inserted }
+            let mergedSegments = Self.mergeOverlappingSegments(
+                uniqueSegments.map { (startDay: $0.0, endDay: $0.1) }
+            )
             result.append(GanttProject(
                 id: project.id, name: project.name,
                 isDone: project.status == .done,
-                segments: uniqueSegments
+                segments: mergedSegments
             ))
         }
         return result
